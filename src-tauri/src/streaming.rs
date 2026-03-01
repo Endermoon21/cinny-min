@@ -242,7 +242,7 @@ fn get_gstreamer_env(app: &AppHandle) -> HashMap<String, String> {
     #[cfg(target_os = "windows")]
     {
         if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
-            possible_paths.push(std::path::PathBuf::from(local_app_data).join("Cinny").join("gstreamer"));
+            possible_paths.push(std::path::PathBuf::from(local_app_data).join("Cinny-Min").join("gstreamer"));
         }
     }
     

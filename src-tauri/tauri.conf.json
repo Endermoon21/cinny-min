@@ -1,6 +1,6 @@
 {
   "package": {
-    "productName": "Cinny",
+    "productName": "Cinny-Min",
     "version": "4.10.97"
   },
   "build": {
@@ -31,7 +31,7 @@
       "copyright": "© 2026 endershare.org",
       "category": "SocialNetworking",
       "shortDescription": "Matrix client with voice channels and game streaming",
-      "longDescription": "Cinny with LiveKit voice integration, RNNoise, Discord-style UI, and native game streaming via GStreamer WHIP",
+      "longDescription": "Cinny-Min: Matrix client with LiveKit voice integration, RNNoise, Discord-style UI, and native game streaming via GStreamer WHIP",
       "deb": {
         "depends": []
       },
@@ -92,7 +92,7 @@
     },
     "windows": [
       {
-        "title": "Cinny",
+        "title": "Cinny-Min",
         "width": 1280,
         "height": 905,
         "center": true,
