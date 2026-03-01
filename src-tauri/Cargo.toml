@@ -1,6 +1,6 @@
 [package]
 name = "cinny-min"
-version = "4.11.5"
+version = "4.11.6"
 description = "Matrix client with voice channels and game streaming"
 authors = ["endershare.org"]
 license = "AGPL-3.0-only"
