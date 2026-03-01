@@ -321,7 +321,7 @@ pub async fn start_stream(
     log_to_file(&format!("GStreamer pipeline: {}", pipeline_str));
 
     // Parse and create pipeline
-    let pipeline = gst::parse::launch(&pipeline_str)
+    let pipeline = gst::parse_launch(&pipeline_str)
         .map_err(|e| {
             let msg = format!("Failed to parse pipeline: {}", e);
             log_to_file(&msg);
@@ -393,12 +393,14 @@ pub async fn start_stream(
                 }
                 gst::MessageView::StateChanged(state_changed) => {
                     // Only log state changes for the pipeline itself
-                    if state_changed.src().map(|s| s.type_().name()) == Some("GstPipeline") {
-                        log_to_file(&format!(
-                            "Pipeline state: {:?} -> {:?}",
-                            state_changed.old(),
-                            state_changed.current()
-                        ));
+                    if let Some(src) = state_changed.src() {
+                        if src.type_().name() == "GstPipeline" {
+                            log_to_file(&format!(
+                                "Pipeline state: {:?} -> {:?}",
+                                state_changed.old(),
+                                state_changed.current()
+                            ));
+                        }
                     }
                 }
                 gst::MessageView::Warning(warning) => {
@@ -475,7 +477,7 @@ pub async fn get_stream_status(app: AppHandle) -> Result<StreamStatus, String> {
     let last_error = state.shared.last_error.lock().map_err(|e| e.to_string())?;
 
     let active = pipeline.is_some();
-    let duration_seconds = start_time.as_ref().map(|t| t.elapsed().as_secs()).unwrap_or(0);
+    let duration_seconds = start_time.as_ref().map(|t: &std::time::Instant| t.elapsed().as_secs()).unwrap_or(0);
 
     Ok(StreamStatus {
         active,
