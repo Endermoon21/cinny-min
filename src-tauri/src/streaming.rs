@@ -276,6 +276,10 @@ fn build_gstreamer_pipeline(config: &StreamConfig) -> String {
     // Queue for stability
     pipeline.push_str(" ! queue max-size-buffers=1");
 
+    // Download from GPU memory to system memory for software encoder
+    #[cfg(target_os = "windows")]
+    pipeline.push_str(" ! d3d11download ! videoconvert ! video/x-raw,format=I420");
+
     // H.264 encoder - use OpenH264 (bundled with GStreamer)
     #[cfg(target_os = "windows")]
     {
