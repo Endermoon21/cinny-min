@@ -276,26 +276,48 @@ fn build_gstreamer_pipeline(config: &StreamConfig) -> String {
     // Queue for stability
     pipeline.push_str(" ! queue max-size-buffers=1");
 
-    // WHIP sink with bitrate control
-    let bitrate_bps = (config.bitrate * 1000) as u64;
-    let min_bitrate = std::cmp::max(bitrate_bps / 4, 500_000);
-    let start_bitrate = bitrate_bps * 80 / 100;
-    let max_bitrate = bitrate_bps * 150 / 100;
+    // H.264 encoder - use Media Foundation on Windows
+    #[cfg(target_os = "windows")]
+    {
+        let bitrate_kbps = config.bitrate;
+        pipeline.push_str(&format!(
+            " ! mfh264enc bitrate={} low-latency=true",
+            bitrate_kbps
+        ));
+    }
 
-    // whipclientsink handles encoding internally when receiving raw video
-    // It will auto-select the best encoder (mfh264enc, nvh264enc, x264enc, etc.)
-    pipeline.push_str(&format!(
-        " ! whipclientsink name=whip min-bitrate={} max-bitrate={} start-bitrate={} video-caps=video/x-h264 signaller::whip-endpoint={}",
-        min_bitrate, max_bitrate, start_bitrate, config.whip_url
-    ));
+    #[cfg(target_os = "linux")]
+    {
+        let bitrate_kbps = config.bitrate;
+        pipeline.push_str(&format!(
+            " ! x264enc bitrate={} tune=zerolatency speed-preset=ultrafast",
+            bitrate_kbps
+        ));
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let bitrate_kbps = config.bitrate;
+        pipeline.push_str(&format!(
+            " ! vtenc_h264 bitrate={} realtime=true",
+            bitrate_kbps
+        ));
+    }
+
+    // H264 parser and RTP payload
+    pipeline.push_str(" ! h264parse ! rtph264pay config-interval=-1 pt=96");
+
+    // WHIP sink with auth
+    let mut whip_props = format!(
+        " ! whipclientsink name=whip signaller::whip-endpoint=\"{}\"",
+        config.whip_url
+    );
 
     if let Some(ref token) = config.bearer_token {
-        pipeline.push_str(&format!(" signaller::auth-token={}", token));
+        whip_props.push_str(&format!(" signaller::auth-token=\"{}\"", token));
     }
 
-    if let Some(ref turn) = config.turn_server {
-        pipeline.push_str(&format!(" turn-servers=<\"{}\">", turn));
-    }
+    pipeline.push_str(&whip_props);
 
     pipeline
 }
