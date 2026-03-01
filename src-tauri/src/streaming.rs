@@ -471,23 +471,30 @@ pub async fn stop_stream(app: AppHandle) -> Result<(), String> {
 pub async fn get_stream_status(app: AppHandle) -> Result<StreamStatus, String> {
     let state = app.state::<StreamingState>();
 
-    let pipeline = state.pipeline.lock().unwrap();
-    let config = state.current_config.lock().unwrap();
-    let start_time = state.start_time.lock().unwrap();
-    let last_error = state.shared.last_error.lock().unwrap();
+    let pipeline_guard = state.pipeline.lock().unwrap();
+    let config_guard = state.current_config.lock().unwrap();
+    let start_time_guard = state.start_time.lock().unwrap();
+    let last_error_guard = state.shared.last_error.lock().unwrap();
 
-    let active = pipeline.is_some();
-    let duration_seconds = match *start_time {
-        Some(ref t) => t.elapsed().as_secs(),
-        None => 0,
+    let active = pipeline_guard.is_some();
+
+    let start_time_opt: &Option<std::time::Instant> = &*start_time_guard;
+    let duration_seconds: u64 = if let Some(t) = start_time_opt {
+        t.elapsed().as_secs()
+    } else {
+        0
     };
+
+    let source_id: Option<String> = config_guard.as_ref().map(|c| c.source_id.clone());
+    let whip_url: Option<String> = config_guard.as_ref().map(|c| c.whip_url.clone());
+    let error: Option<String> = last_error_guard.clone();
 
     Ok(StreamStatus {
         active,
-        source_id: config.as_ref().map(|c| c.source_id.clone()),
-        whip_url: config.as_ref().map(|c| c.whip_url.clone()),
+        source_id,
+        whip_url,
         duration_seconds,
-        error: last_error.clone(),
+        error,
     })
 }
 
