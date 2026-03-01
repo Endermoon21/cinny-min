@@ -276,13 +276,13 @@ fn build_gstreamer_pipeline(config: &StreamConfig) -> String {
     // Queue for stability
     pipeline.push_str(" ! queue max-size-buffers=1");
 
-    // H.264 encoder - use Media Foundation on Windows
+    // H.264 encoder - use OpenH264 (bundled with GStreamer)
     #[cfg(target_os = "windows")]
     {
-        let bitrate_kbps = config.bitrate;
+        let bitrate_bps = config.bitrate * 1000;
         pipeline.push_str(&format!(
-            " ! mfh264enc bitrate={} low-latency=true",
-            bitrate_kbps
+            " ! openh264enc bitrate={} complexity=low",
+            bitrate_bps
         ));
     }
 
