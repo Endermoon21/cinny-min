@@ -152,6 +152,45 @@ export const uploadContent = async (
 ) => {
   const { name, fileType, hideFilename, onProgress, onPromise, onSuccess, onError } = options;
 
+  // Try native upload in Tauri (bypasses WebView CORS issues)
+  if (typeof window !== 'undefined' && '__TAURI__' in window) {
+    try {
+      const { nativeUploadFile } = await import('./nativeUpload');
+      const homeserver = mx.getHomeserverUrl();
+      const accessToken = mx.getAccessToken();
+
+      if (!accessToken) {
+        throw new Error('No access token available');
+      }
+
+      // Create a fake promise for compatibility with onPromise callback
+      let resolvePromise: (value: any) => void;
+      let rejectPromise: (error: any) => void;
+      const fakePromise = new Promise<any>((resolve, reject) => {
+        resolvePromise = resolve;
+        rejectPromise = reject;
+      });
+      onPromise?.(fakePromise as any);
+
+      const mxc = await nativeUploadFile(
+        file,
+        homeserver,
+        accessToken,
+        onProgress ? (progress) => {
+          onProgress({ loaded: progress.loaded, total: progress.total });
+        } : undefined
+      );
+
+      resolvePromise!({ content_uri: mxc });
+      onSuccess(mxc);
+      return;
+    } catch (e: any) {
+      console.error('Native upload failed, falling back to SDK:', e);
+      // Fall through to standard SDK upload
+    }
+  }
+
+  // Standard Matrix SDK upload (for browser or fallback)
   const uploadPromise = mx.uploadContent(file, {
     name,
     type: fileType,

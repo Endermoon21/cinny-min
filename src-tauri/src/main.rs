@@ -7,6 +7,7 @@
 mod menu;
 
 mod streaming;
+mod upload;
 
 use tauri::{utils::config::AppUrl, WindowUrl};
 
@@ -73,13 +74,15 @@ fn main() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         // Register streaming state
         .manage(streaming::StreamingState::default())
-        // Register streaming commands
+        // Register streaming and upload commands
         .invoke_handler(tauri::generate_handler![
             streaming::list_capture_sources,
             streaming::start_stream,
             streaming::stop_stream,
             streaming::get_stream_status,
             streaming::check_gstreamer,
+            upload::native_upload_file,
+            upload::cancel_native_upload,
         ])
         .run(context)
         .expect("error while building tauri application")
