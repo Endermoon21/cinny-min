@@ -53,31 +53,33 @@ git push
 
 echo -e "Pushed to GitHub ✓"
 
-# Step 3: Build on VOLTA via SSH (Windows PowerShell)
+# Step 3: Build on VOLTA via SSH
 echo -e "\n${GREEN}[3/6] Building on VOLTA (this takes ~2-3 minutes)...${NC}"
 
-# Run build on VOLTA using PowerShell
-sshpass -p "$VOLTA_PASS" ssh -o StrictHostKeyChecking=no "$VOLTA_HOST" "powershell -Command \"
-    Set-Location 'C:\\Users\\VOLTA\\cinny-desktop'
-    git pull
-    \$env:PATH = 'C:\\Users\\VOLTA\\.cargo\\bin;' + \$env:PATH
-    npx tauri build
-\"" 2>&1 | while IFS= read -r line; do
-    # Show progress indicators
+# Create build script on VOLTA with correct GStreamer paths
+sshpass -p "$VOLTA_PASS" ssh -o StrictHostKeyChecking=no "$VOLTA_HOST" 'echo @echo off > C:\Users\VOLTA\build.bat'
+sshpass -p "$VOLTA_PASS" ssh -o StrictHostKeyChecking=no "$VOLTA_HOST" 'echo set "PATH=C:\Program Files\gstreamer\1.0\msvc_x86_64\bin;%PATH%" >> C:\Users\VOLTA\build.bat'
+sshpass -p "$VOLTA_PASS" ssh -o StrictHostKeyChecking=no "$VOLTA_HOST" 'echo set "PKG_CONFIG_PATH=C:\Program Files\gstreamer\1.0\msvc_x86_64\lib\pkgconfig" >> C:\Users\VOLTA\build.bat'
+sshpass -p "$VOLTA_PASS" ssh -o StrictHostKeyChecking=no "$VOLTA_HOST" 'echo cd C:\Users\VOLTA\cinny-desktop >> C:\Users\VOLTA\build.bat'
+sshpass -p "$VOLTA_PASS" ssh -o StrictHostKeyChecking=no "$VOLTA_HOST" 'echo git pull >> C:\Users\VOLTA\build.bat'
+sshpass -p "$VOLTA_PASS" ssh -o StrictHostKeyChecking=no "$VOLTA_HOST" 'echo npx tauri build >> C:\Users\VOLTA\build.bat'
+
+# Run the build script
+sshpass -p "$VOLTA_PASS" ssh -o StrictHostKeyChecking=no "$VOLTA_HOST" "C:\\Users\\VOLTA\\build.bat" 2>&1 | while IFS= read -r line; do
     if [[ "$line" == *"Compiling"* ]]; then
         echo -ne "\r${YELLOW}Compiling Rust...${NC}                              "
-    elif [[ "$line" == *"Finished"* ]]; then
-        echo -e "\r${GREEN}Rust build complete ✓${NC}                              "
-    elif [[ "$line" == *"Building"* ]]; then
-        echo -ne "\r${YELLOW}Building installer...${NC}                              "
-    elif [[ "$line" == *"NSIS"* ]] || [[ "$line" == *"nsis"* ]]; then
-        echo -ne "\r${YELLOW}Creating NSIS installer...${NC}                              "
     elif [[ "$line" == *"Finished"*"release"* ]]; then
-        echo -e "\r${GREEN}Build finished ✓${NC}                              "
+        echo -e "\r${GREEN}Rust build complete ✓${NC}                              "
+    elif [[ "$line" == *"Running candle"* ]] || [[ "$line" == *"Running light"* ]]; then
+        echo -ne "\r${YELLOW}Building MSI installer...${NC}                              "
+    elif [[ "$line" == *"makensis"* ]] || [[ "$line" == *"NSIS"* ]]; then
+        echo -ne "\r${YELLOW}Creating NSIS installer...${NC}                              "
+    elif [[ "$line" == *"Bundling"* ]]; then
+        echo -ne "\r${YELLOW}Bundling...${NC}                              "
     fi
 done
 
-echo -e "${GREEN}Windows build complete ✓${NC}"
+echo -e "\n${GREEN}Windows build complete ✓${NC}"
 
 # Step 4: Pull bundle from VOLTA
 echo -e "\n${GREEN}[4/6] Downloading bundle from VOLTA...${NC}"
