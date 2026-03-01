@@ -1,7 +1,7 @@
 {
   "package": {
     "productName": "Cinny-Min",
-    "version": "4.11.6"
+    "version": "4.11.7"
   },
   "build": {
     "withGlobalTauri": true,
@@ -94,7 +94,7 @@
       }
     ],
     "security": {
-      "csp": "script-src blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self'"
+      "csp": "default-src 'self' blob: data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:; connect-src 'self' blob: data: http: https: ws: wss:; img-src 'self' blob: data: http: https:; media-src 'self' blob: data: http: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-src 'self' blob:"
     }
   }
 }
