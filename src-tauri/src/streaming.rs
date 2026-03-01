@@ -310,7 +310,7 @@ pub async fn start_stream(
 
     // Check if already streaming
     {
-        let pipeline = state.pipeline.lock().map_err(|e| e.to_string())?;
+        let pipeline = state.pipeline.lock().unwrap();
         if pipeline.is_some() {
             return Err("Already streaming".to_string());
         }
@@ -321,13 +321,14 @@ pub async fn start_stream(
     log_to_file(&format!("GStreamer pipeline: {}", pipeline_str));
 
     // Parse and create pipeline
-    let pipeline = gst::parse_launch(&pipeline_str)
+    let element = gst::parse_launch(&pipeline_str)
         .map_err(|e| {
             let msg = format!("Failed to parse pipeline: {}", e);
             log_to_file(&msg);
             msg
-        })?
-        .downcast::<gst::Pipeline>()
+        })?;
+
+    let pipeline = element.downcast::<gst::Pipeline>()
         .map_err(|_| {
             let msg = "Pipeline is not a GstPipeline";
             log_to_file(msg);
@@ -349,23 +350,23 @@ pub async fn start_stream(
 
     // Store pipeline and config
     {
-        let mut pipeline_lock = state.pipeline.lock().map_err(|e| e.to_string())?;
+        let mut pipeline_lock = state.pipeline.lock().unwrap();
         *pipeline_lock = Some(pipeline);
     }
     {
-        let mut config_lock = state.current_config.lock().map_err(|e| e.to_string())?;
+        let mut config_lock = state.current_config.lock().unwrap();
         *config_lock = Some(config);
     }
     {
-        let mut start_lock = state.start_time.lock().map_err(|e| e.to_string())?;
+        let mut start_lock = state.start_time.lock().unwrap();
         *start_lock = Some(std::time::Instant::now());
     }
     {
-        let mut error_lock = state.shared.last_error.lock().map_err(|e| e.to_string())?;
+        let mut error_lock = state.shared.last_error.lock().unwrap();
         *error_lock = None;
     }
     {
-        let mut running = state.shared.is_running.lock().map_err(|e| e.to_string())?;
+        let mut running = state.shared.is_running.lock().unwrap();
         *running = true;
     }
 
@@ -430,7 +431,7 @@ pub async fn stop_stream(app: AppHandle) -> Result<(), String> {
     let state = app.state::<StreamingState>();
 
     let pipeline_opt = {
-        let mut pipeline_lock = state.pipeline.lock().map_err(|e| e.to_string())?;
+        let mut pipeline_lock = state.pipeline.lock().unwrap();
         pipeline_lock.take()
     };
 
@@ -438,28 +439,27 @@ pub async fn stop_stream(app: AppHandle) -> Result<(), String> {
         log_to_file("Stopping GStreamer pipeline");
 
         // Send EOS to gracefully stop
-        pipeline.send_event(gst::event::Eos::new());
+        let _ = pipeline.send_event(gst::event::Eos::new());
 
         // Wait briefly for EOS to propagate, then force stop
         std::thread::sleep(std::time::Duration::from_millis(100));
 
-        pipeline.set_state(gst::State::Null)
-            .map_err(|e| format!("Failed to stop pipeline: {:?}", e))?;
+        let _ = pipeline.set_state(gst::State::Null);
 
         log_to_file("GStreamer pipeline stopped");
     }
 
     // Clear state
     {
-        let mut config = state.current_config.lock().map_err(|e| e.to_string())?;
+        let mut config = state.current_config.lock().unwrap();
         *config = None;
     }
     {
-        let mut start = state.start_time.lock().map_err(|e| e.to_string())?;
+        let mut start = state.start_time.lock().unwrap();
         *start = None;
     }
     {
-        let mut running = state.shared.is_running.lock().map_err(|e| e.to_string())?;
+        let mut running = state.shared.is_running.lock().unwrap();
         *running = false;
     }
 
@@ -471,13 +471,13 @@ pub async fn stop_stream(app: AppHandle) -> Result<(), String> {
 pub async fn get_stream_status(app: AppHandle) -> Result<StreamStatus, String> {
     let state = app.state::<StreamingState>();
 
-    let pipeline = state.pipeline.lock().map_err(|e| e.to_string())?;
-    let config = state.current_config.lock().map_err(|e| e.to_string())?;
-    let start_time = state.start_time.lock().map_err(|e| e.to_string())?;
-    let last_error = state.shared.last_error.lock().map_err(|e| e.to_string())?;
+    let pipeline = state.pipeline.lock().unwrap();
+    let config = state.current_config.lock().unwrap();
+    let start_time = state.start_time.lock().unwrap();
+    let last_error = state.shared.last_error.lock().unwrap();
 
     let active = pipeline.is_some();
-    let duration_seconds = start_time.as_ref().map(|t: &std::time::Instant| t.elapsed().as_secs()).unwrap_or(0);
+    let duration_seconds = start_time.as_ref().map(|t| t.elapsed().as_secs()).unwrap_or(0);
 
     Ok(StreamStatus {
         active,
