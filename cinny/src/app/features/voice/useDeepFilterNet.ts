@@ -18,7 +18,14 @@ export function useDeepFilterNet(microphoneTrack?: LocalAudioTrack): UseDeepFilt
   const [isNoiseFilterPending, setIsNoiseFilterPending] = useState(false);
   const [suppressionLevel, setSuppressionLevelState] = useState(DEFAULT_SUPPRESSION_LEVEL);
   const processorRef = useRef<DeepFilterNoiseFilterProcessor | null>(null);
-  const isSupported = DeepFilterNoiseFilterProcessor.isSupported();
+
+  let isSupported = false;
+  try {
+    isSupported = DeepFilterNoiseFilterProcessor.isSupported();
+    console.log('[DeepFilterNet] isSupported:', isSupported);
+  } catch (err) {
+    console.error('[DeepFilterNet] Error checking isSupported:', err);
+  }
 
   // Create processor lazily
   const getOrCreateProcessor = useCallback(() => {

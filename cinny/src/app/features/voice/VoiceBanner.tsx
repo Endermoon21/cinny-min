@@ -57,6 +57,11 @@ export function VoiceBanner() {
     : 'Voice Channel';
 
   const handleToggle = () => {
+    console.log('[VoiceBanner] handleToggle called', {
+      isNoiseFilterPending,
+      isNoiseFilterEnabled,
+      isNoiseFilterSupported,
+    });
     if (!isNoiseFilterPending) {
       setNoiseFilterEnabled(!isNoiseFilterEnabled);
     }
