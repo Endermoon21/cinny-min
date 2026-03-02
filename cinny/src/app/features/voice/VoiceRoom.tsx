@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import classNames from "classnames";
 import { useLiveKitContext, VoiceParticipant } from "./LiveKitContext";
 import { useMatrixClient } from "../../hooks/useMatrixClient";
+import { StreamingModal } from "./StreamingModal";
+import { getNativeStreamStatus, isNativeStreamingAvailable } from "./nativeStreaming";
 import * as css from "./voiceRoom.css";
 
 // Color palette for user tiles (Discord-like accent colors)
@@ -123,6 +125,22 @@ const VolumeHighIcon = () => (
 const VolumeMuteIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M11 5 6 9H2v6h4l5 4V5Z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/>
+  </svg>
+);
+
+const VideoIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m22 8-6 4 6 4V8Z" />
+    <rect width="14" height="12" x="2" y="6" rx="2" ry="2" />
+  </svg>
+);
+
+const ScreenShareActiveIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M13 3H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3" />
+    <path d="M8 21h8" />
+    <path d="M12 17v4" />
+    <circle cx="18" cy="6" r="4" fill="#F23F43" stroke="none" />
   </svg>
 );
 
@@ -266,13 +284,31 @@ function ParticipantTile({ participant, avatarUrl, displayName }: ParticipantTil
 export function VoiceRoom() {
   const mx = useMatrixClient();
   const {
-    currentRoom, participants, isMuted, isDeafened, screenShareInfo, connectionQuality,
-    disconnect, toggleMute, toggleDeafen, getScreenShareElement
+    currentRoom, participants, isMuted, screenShareInfo, connectionQuality,
+    disconnect, toggleMute, getScreenShareElement
   } = useLiveKitContext();
 
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const [profileCache, setProfileCache] = useState<Record<string, { avatarUrl?: string; displayName: string }>>({});
   const [showStreamOverlay, setShowStreamOverlay] = useState(false);
+  const [showStreamModal, setShowStreamModal] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+
+  // Check streaming status periodically
+  useEffect(() => {
+    if (!isNativeStreamingAvailable()) return;
+    const checkStatus = async () => {
+      try {
+        const status = await getNativeStreamStatus();
+        setIsStreaming(status.active);
+      } catch (e) {
+        // Ignore errors
+      }
+    };
+    checkStatus();
+    const interval = setInterval(checkStatus, 2000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const fetchProfiles = async () => {
@@ -444,20 +480,26 @@ export function VoiceRoom() {
 
       <div className={css.ControlBar}>
         <div className={css.ControlGroup}>
+          <button className={css.ControlBtn} disabled title="Video (Coming Soon)">
+            <VideoIcon />
+          </button>
           <button className={classNames(css.ControlBtn, { [css.ControlBtnActive]: isMuted })} onClick={toggleMute} title={isMuted ? "Unmute" : "Mute"}>
             {isMuted ? <MicOffIcon /> : <MicIcon />}
           </button>
-          <button className={classNames(css.ControlBtn, { [css.ControlBtnActive]: isDeafened })} onClick={toggleDeafen} title={isDeafened ? "Undeafen" : "Deafen"}>
-            {isDeafened ? <HeadphonesOffIcon /> : <HeadphonesIcon />}
-          </button>
-          <button className={css.ControlBtn} disabled title="Use Stream button in panel">
-            <ScreenShareIcon />
+          <button
+            className={classNames(css.ControlBtn, { [css.ControlBtnActive]: isStreaming })}
+            onClick={() => setShowStreamModal(true)}
+            title={isStreaming ? "Streaming" : "Share Screen"}
+          >
+            {isStreaming ? <ScreenShareActiveIcon /> : <ScreenShareIcon />}
           </button>
         </div>
         <button className={css.DisconnectBtn} onClick={disconnect} title="Disconnect">
           <DisconnectIcon />
         </button>
       </div>
+
+      {showStreamModal && <StreamingModal onClose={() => setShowStreamModal(false)} />}
     </div>
   );
 }
