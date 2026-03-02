@@ -89,16 +89,6 @@ const DisconnectIcon = () => (
 );
 
 
-const NoiseFilterIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-    <path d="M12 18v4" />
-    <path d="M8 22h8" />
-    <path d="m9 9 6 6" />
-    <path d="m15 9-6 6" />
-  </svg>
-);
 const VoiceChannelIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style={{ opacity: 0.7 }}>
     <path d="M12 3a1 1 0 0 0-1-1h-.06a1 1 0 0 0-.74.32L5.92 7H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2.92l4.28 4.68a1 1 0 0 0 .74.32H11a1 1 0 0 0 1-1V3ZM15.1 20.75c-.58.14-1.1-.33-1.1-.92v-.03c0-.5.37-.92.85-1.05a7 7 0 0 0 0-13.5A1.11 1.11 0 0 1 14 4.2v-.03c0-.6.52-1.06 1.1-.92a9 9 0 0 1 0 17.5Z"/>
@@ -277,7 +267,7 @@ export function VoiceRoom() {
   const mx = useMatrixClient();
   const {
     currentRoom, participants, isMuted, isDeafened, screenShareInfo, connectionQuality,
-    disconnect, toggleMute, toggleDeafen, getScreenShareElement, isNoiseFilterEnabled, isNoiseFilterPending, setNoiseFilterEnabled
+    disconnect, toggleMute, toggleDeafen, getScreenShareElement
   } = useLiveKitContext();
 
   const videoContainerRef = useRef<HTMLDivElement>(null);
@@ -462,15 +452,6 @@ export function VoiceRoom() {
           </button>
           <button className={css.ControlBtn} disabled title="Use Stream button in panel">
             <ScreenShareIcon />
-          </button>
-          <button 
-            className={classNames(css.ControlBtn, { [css.ControlBtnActive]: isNoiseFilterEnabled })} 
-            onClick={() => setNoiseFilterEnabled(!isNoiseFilterEnabled)} 
-            disabled={isNoiseFilterPending}
-            title={isNoiseFilterEnabled ? "Disable RNNoise" : "Enable RNNoise"}
-            style={{ opacity: isNoiseFilterPending ? 0.5 : 1 }}
-          >
-            <NoiseFilterIcon />
           </button>
         </div>
         <button className={css.DisconnectBtn} onClick={disconnect} title="Disconnect">

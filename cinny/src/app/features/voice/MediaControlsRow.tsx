@@ -5,6 +5,30 @@ import { StreamingModal } from "./StreamingModal";
 import { isNativeStreamingAvailable, getNativeStreamStatus } from "./nativeStreaming";
 import * as css from "./voicePanel.css";
 
+// RNNoise Icon (waveform with noise cancellation)
+const RNNoiseIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 10v4" />
+    <path d="M6 6v12" />
+    <path d="M10 3v18" />
+    <path d="M14 8v8" />
+    <path d="M18 5v14" />
+    <path d="M22 10v4" />
+  </svg>
+);
+
+const RNNoiseActiveIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 10v4" />
+    <path d="M6 6v12" />
+    <path d="M10 3v18" />
+    <path d="M14 8v8" />
+    <path d="M18 5v14" />
+    <path d="M22 10v4" />
+    <circle cx="12" cy="12" r="3" fill="#43B581" stroke="none" />
+  </svg>
+);
+
 // Icons
 const VideoIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -32,16 +56,6 @@ const ScreenShareActiveIcon = () => (
   </svg>
 );
 
-const SoundboardIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M2 10v3" />
-    <path d="M6 6v11" />
-    <path d="M10 3v18" />
-    <path d="M14 8v7" />
-    <path d="M18 5v13" />
-    <path d="M22 10v3" />
-  </svg>
-);
 
 const ActivitiesIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -54,6 +68,7 @@ const ActivitiesIcon = () => (
 export function MediaControlsRow() {
   const [showStreamModal, setShowStreamModal] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  const { isNoiseFilterEnabled, isNoiseFilterPending, setNoiseFilterEnabled } = useLiveKitContext();
 
   // Check streaming status periodically
   React.useEffect(() => {
@@ -93,11 +108,13 @@ export function MediaControlsRow() {
         </button>
         
         <button
-          className={css.MediaBtn}
-          disabled
-          title="Soundboard (Coming Soon)"
+          className={classNames(css.MediaBtn, { [css.MediaBtnActive]: isNoiseFilterEnabled })}
+          onClick={() => !isNoiseFilterPending && setNoiseFilterEnabled(!isNoiseFilterEnabled)}
+          disabled={isNoiseFilterPending}
+          title={isNoiseFilterEnabled ? "Disable RNNoise" : "Enable RNNoise"}
+          style={{ opacity: isNoiseFilterPending ? 0.6 : 1 }}
         >
-          <SoundboardIcon />
+          {isNoiseFilterEnabled ? <RNNoiseActiveIcon /> : <RNNoiseIcon />}
         </button>
         
         <button
