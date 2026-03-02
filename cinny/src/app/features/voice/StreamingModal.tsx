@@ -358,6 +358,8 @@ export function StreamingModal({ onClose }: StreamingModalProps) {
         audio_enabled: audioEnabled,
         bearer_token: ingress.streamKey,
         backend: 'gstreamer',
+        // TURN server for external connectivity (users not on Tailscale)
+        turn_server: 'turn://livekit:turnpassword123@144.24.3.66:3478',
       };
 
       await startNativeStream(config);
