@@ -1,6 +1,6 @@
 [package]
 name = "cinny-min"
-version = "4.11.13"
+version = "4.11.14"
 description = "Matrix client with voice channels and game streaming"
 authors = ["endershare.org"]
 license = "AGPL-3.0-only"
@@ -32,6 +32,7 @@ gstreamer = "0.23"
 # HTTP client for native file uploads (bypasses WebView CORS issues)
 reqwest = { version = "0.11", features = ["json", "multipart", "stream"] }
 urlencoding = "2.1"
+base64 = "0.22"
 
 tauri-plugin-localhost = "0.1.0"
 tauri-plugin-window-state = "0.1.1"

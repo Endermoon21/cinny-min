@@ -4,10 +4,11 @@
 //! The Matrix SDK's XMLHttpRequest-based upload gets stuck due to CORS when
 //! the app origin is http://localhost:44548.
 
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tauri::{AppHandle, Manager, Window};
+use tauri::Window;
 use tokio::sync::Mutex;
 
 /// Upload progress event payload
@@ -40,7 +41,7 @@ pub struct UploadState {
 /// Upload a file to Matrix media API
 ///
 /// This function:
-/// 1. Reads the file from the provided path or uses provided bytes
+/// 1. Decodes base64 file data (more efficient than JSON byte array)
 /// 2. Sends it to the Matrix /_matrix/media/v3/upload endpoint
 /// 3. Returns the mxc:// URI
 #[tauri::command]
@@ -49,10 +50,14 @@ pub async fn native_upload_file(
     upload_id: String,
     homeserver: String,
     access_token: String,
-    file_data: Vec<u8>,
+    file_data_base64: String,
     file_name: String,
     content_type: String,
 ) -> Result<UploadResult, String> {
+    // Decode base64 to bytes
+    let file_data = BASE64.decode(&file_data_base64)
+        .map_err(|e| format!("Failed to decode base64: {}", e))?;
+
     log::info!(
         "Native upload starting: {} ({} bytes, {})",
         file_name,

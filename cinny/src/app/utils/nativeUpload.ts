@@ -45,9 +45,18 @@ export async function nativeUploadFile(
   // Generate unique upload ID for tracking
   const uploadId = `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-  // Convert file to Uint8Array
+  // Convert file to base64 using efficient Uint8Array method
   const arrayBuffer = await file.arrayBuffer();
-  const fileData = Array.from(new Uint8Array(arrayBuffer));
+  const bytes = new Uint8Array(arrayBuffer);
+
+  // Use chunked string building to avoid call stack limits on large files
+  const chunkSize = 0x8000; // 32KB chunks
+  const chunks: string[] = [];
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    chunks.push(String.fromCharCode.apply(null, chunk as unknown as number[]));
+  }
+  const fileDataBase64 = btoa(chunks.join(''));
 
   // Get file name and type
   const fileName = file instanceof File ? file.name : 'blob';
@@ -69,7 +78,7 @@ export async function nativeUploadFile(
       uploadId,
       homeserver,
       accessToken,
-      fileData,
+      fileDataBase64,
       fileName,
       contentType,
     });
