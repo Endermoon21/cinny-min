@@ -16,19 +16,21 @@ export function useRNNoiseFilter(microphoneTrack?: LocalAudioTrack): UseRNNoiseF
   const [processor, setProcessor] = useState<RNNoiseProcessor>();
 
   const setNoiseFilterEnabled = useCallback(async (enable: boolean) => {
+    console.log('[RNNoise] setNoiseFilterEnabled called:', enable, 'track:', !!microphoneTrack);
     if (enable && !processor) {
       setProcessor(new RNNoiseProcessor());
     }
-    setShouldEnable((prev) => {
-      if (prev !== enable) {
-        setIsNoiseFilterPending(true);
-      }
-      return enable;
-    });
-  }, [processor]);
+    setShouldEnable(enable);
+    // Only set pending if we have a track to work with
+    if (microphoneTrack) {
+      setIsNoiseFilterPending(true);
+    }
+  }, [processor, microphoneTrack]);
 
   useEffect(() => {
     if (!microphoneTrack || !processor) {
+      // Clear pending if we can't do anything yet
+      setIsNoiseFilterPending(false);
       return;
     }
 
