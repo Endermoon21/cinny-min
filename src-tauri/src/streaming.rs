@@ -351,8 +351,9 @@ signaller::whip-endpoint=\"{}\"",
     }
 
     // Add TURN server if provided (for users without direct connectivity)
+    // GstValueArray format requires escaped quotes: <"url1", "url2">
     if let Some(ref turn) = config.turn_server {
-        whip_props.push_str(&format!(" turn-servers=\"<{}>\"", turn));
+        whip_props.push_str(&format!(" turn-servers=\"<\\\"{}\\\">\"", turn));
     }
 
     // Add audio-caps if audio is enabled
