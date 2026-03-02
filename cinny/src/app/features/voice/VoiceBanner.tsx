@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import classNames from 'classnames';
 import { useLiveKitContext } from './LiveKitContext';
 import { PingVisualizer } from './PingVisualizer';
@@ -45,18 +45,60 @@ export function VoiceBanner() {
     setNoiseFilterEnabled,
   } = useLiveKitContext();
 
+  const [showToast, setShowToast] = useState(false);
+  const [toastClosing, setToastClosing] = useState(false);
+  const [toastMessage, setToastMessage] = useState<{ enabled: boolean } | null>(null);
+
   const roomDisplayName = currentRoom
     ? currentRoom.charAt(0).toUpperCase() + currentRoom.slice(1)
     : 'Voice Channel';
 
   const handleNoiseFilter = () => {
     if (!isNoiseFilterPending) {
-      setNoiseFilterEnabled(!isNoiseFilterEnabled);
+      const newState = !isNoiseFilterEnabled;
+      setNoiseFilterEnabled(newState);
+
+      // Show toast
+      setToastMessage({ enabled: newState });
+      setShowToast(true);
+      setToastClosing(false);
     }
   };
 
+  // Auto-hide toast after 2 seconds
+  useEffect(() => {
+    if (showToast) {
+      const hideTimer = setTimeout(() => {
+        setToastClosing(true);
+        setTimeout(() => {
+          setShowToast(false);
+          setToastClosing(false);
+        }, 200);
+      }, 2000);
+      return () => clearTimeout(hideTimer);
+    }
+  }, [showToast, toastMessage]);
+
   return (
-    <div className={css.VoiceBanner}>
+    <div className={css.VoiceBanner} style={{ position: 'relative' }}>
+      {/* RNNoise Toast */}
+      {showToast && toastMessage && (
+        <div className={classNames(css.RNNoiseToast, { [css.RNNoiseToastClosing]: toastClosing })}>
+          <span className={classNames(css.RNNoiseToastIcon, {
+            [css.RNNoiseToastEnabled]: toastMessage.enabled,
+            [css.RNNoiseToastDisabled]: !toastMessage.enabled,
+          })}>
+            {toastMessage.enabled ? <RNNoiseActiveIcon /> : <RNNoiseIcon />}
+          </span>
+          <span className={classNames(css.RNNoiseToastText, {
+            [css.RNNoiseToastEnabled]: toastMessage.enabled,
+            [css.RNNoiseToastDisabled]: !toastMessage.enabled,
+          })}>
+            {toastMessage.enabled ? 'RNNoise Enabled' : 'RNNoise Disabled'}
+          </span>
+        </div>
+      )}
+
       {/* Top Section */}
       <div className={css.VoiceBannerTop}>
         <div className={css.VoiceBannerInfo}>

@@ -397,6 +397,64 @@ export const NoiseFilterBtnActive = style({
 });
 
 // ===========================================
+// RNN TOAST NOTIFICATION
+// ===========================================
+const toastSlideIn = keyframes({
+  '0%': { opacity: 0, transform: 'translateY(10px)' },
+  '100%': { opacity: 1, transform: 'translateY(0)' },
+});
+
+const toastSlideOut = keyframes({
+  '0%': { opacity: 1, transform: 'translateY(0)' },
+  '100%': { opacity: 0, transform: 'translateY(-10px)' },
+});
+
+export const RNNoiseToast = style({
+  position: 'absolute',
+  bottom: '100%',
+  left: '50%',
+  transform: 'translateX(-50%)',
+  marginBottom: '8px',
+  padding: '8px 12px',
+  backgroundColor: butter.surface,
+  borderRadius: '6px',
+  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+  border: `1px solid ${butter.border}`,
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  whiteSpace: 'nowrap',
+  zIndex: 1000,
+  animation: `${toastSlideIn} 0.2s ${discordEase}`,
+});
+
+export const RNNoiseToastClosing = style({
+  animation: `${toastSlideOut} 0.2s ${discordEase} forwards`,
+});
+
+export const RNNoiseToastIcon = style({
+  width: '18px',
+  height: '18px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+});
+
+export const RNNoiseToastText = style({
+  fontSize: '13px',
+  fontWeight: 500,
+  color: butter.text,
+});
+
+export const RNNoiseToastEnabled = style({
+  color: butter.success,
+});
+
+export const RNNoiseToastDisabled = style({
+  color: butter.textMuted,
+});
+
+// ===========================================
 // DEVICE SELECTOR MENU
 // ===========================================
 export const DeviceMenu = style({
