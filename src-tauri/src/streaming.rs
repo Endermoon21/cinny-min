@@ -260,8 +260,8 @@ fn build_video_capture(config: &StreamConfig) -> String {
             config.width, config.height
         ));
 
-        // Queue for stability - small buffer for low latency
-        video.push_str(" ! queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream");
+        // Queue for stability - moderate buffer to prevent stuttering while keeping latency low
+        video.push_str(" ! queue max-size-buffers=5 max-size-time=0 max-size-bytes=0 leaky=downstream");
 
         // Download from GPU memory to system memory for whipclientsink
         video.push_str(" ! d3d11download ! videoconvert");
@@ -275,7 +275,7 @@ fn build_video_capture(config: &StreamConfig) -> String {
             " ! videoscale ! video/x-raw,format=NV12,width={},height={},framerate={}/1",
             config.width, config.height, config.fps
         ));
-        video.push_str(" ! queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream");
+        video.push_str(" ! queue max-size-buffers=5 max-size-time=0 max-size-bytes=0 leaky=downstream");
     }
 
     #[cfg(target_os = "macos")]
@@ -286,7 +286,7 @@ fn build_video_capture(config: &StreamConfig) -> String {
             " ! videoscale ! video/x-raw,format=NV12,width={},height={},framerate={}/1",
             config.width, config.height, config.fps
         ));
-        video.push_str(" ! queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream");
+        video.push_str(" ! queue max-size-buffers=5 max-size-time=0 max-size-bytes=0 leaky=downstream");
     }
 
     video

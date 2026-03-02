@@ -5,8 +5,8 @@ import { PingVisualizer } from './PingVisualizer';
 import { MediaControlsRow } from './MediaControlsRow';
 import * as css from './voicePanel.css';
 
-// RNNoise waveform icons
-const RNNoiseIcon = () => (
+// Noise suppression waveform icons
+const NoiseFilterIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M2 10v4" />
     <path d="M6 6v12" />
@@ -17,7 +17,7 @@ const RNNoiseIcon = () => (
   </svg>
 );
 
-const RNNoiseActiveIcon = () => (
+const NoiseFilterActiveIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M2 10v4" />
     <path d="M6 6v12" />
@@ -43,6 +43,9 @@ export function VoiceBanner() {
     isNoiseFilterEnabled,
     isNoiseFilterPending,
     setNoiseFilterEnabled,
+    suppressionLevel,
+    setSuppressionLevel,
+    isNoiseFilterSupported,
   } = useLiveKitContext();
 
   const [showModal, setShowModal] = useState(false);
@@ -57,6 +60,10 @@ export function VoiceBanner() {
     if (!isNoiseFilterPending) {
       setNoiseFilterEnabled(!isNoiseFilterEnabled);
     }
+  };
+
+  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSuppressionLevel(parseInt(e.target.value, 10));
   };
 
   // Close modal when clicking outside
@@ -80,19 +87,20 @@ export function VoiceBanner() {
 
   return (
     <div className={css.VoiceBanner} style={{ position: 'relative' }}>
-      {/* RNNoise Modal */}
+      {/* Noise Suppression Modal */}
       {showModal && (
         <div ref={modalRef} className={css.RNNoiseModal}>
           <div className={css.RNNoiseModalHeader}>
             <span className={css.RNNoiseModalIcon}>
-              {isNoiseFilterEnabled ? <RNNoiseActiveIcon /> : <RNNoiseIcon />}
+              {isNoiseFilterEnabled ? <NoiseFilterActiveIcon /> : <NoiseFilterIcon />}
             </span>
             <span className={css.RNNoiseModalTitle}>Noise Suppression</span>
           </div>
           <div className={css.RNNoiseModalContent}>
+            {/* Enable/Disable Toggle */}
             <div className={css.RNNoiseModalRow}>
               <div className={css.RNNoiseModalLabel}>
-                <span className={css.RNNoiseModalLabelText}>RNNoise</span>
+                <span className={css.RNNoiseModalLabelText}>DeepFilterNet</span>
                 <span className={css.RNNoiseModalLabelDesc}>AI-powered noise removal</span>
               </div>
               <button
@@ -100,12 +108,39 @@ export function VoiceBanner() {
                   [css.ToggleSwitchActive]: isNoiseFilterEnabled,
                 })}
                 onClick={handleToggle}
-                disabled={isNoiseFilterPending}
-                style={{ opacity: isNoiseFilterPending ? 0.5 : 1 }}
+                disabled={isNoiseFilterPending || !isNoiseFilterSupported}
+                style={{ opacity: (isNoiseFilterPending || !isNoiseFilterSupported) ? 0.5 : 1 }}
               >
                 <span className={css.ToggleSwitchKnob} />
               </button>
             </div>
+
+            {/* Suppression Level Slider */}
+            {isNoiseFilterEnabled && (
+              <div className={css.RNNoiseModalRow} style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
+                <div className={css.RNNoiseModalLabel}>
+                  <span className={css.RNNoiseModalLabelText}>Suppression Level</span>
+                  <span className={css.RNNoiseModalLabelDesc}>{suppressionLevel}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={suppressionLevel}
+                  onChange={handleSliderChange}
+                  className={css.SuppressionSlider}
+                />
+              </div>
+            )}
+
+            {/* Not supported warning */}
+            {!isNoiseFilterSupported && (
+              <div className={css.RNNoiseModalRow}>
+                <span className={css.RNNoiseModalLabelDesc} style={{ color: '#F04747' }}>
+                  Not supported in this browser
+                </span>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -129,7 +164,7 @@ export function VoiceBanner() {
             onClick={() => setShowModal(!showModal)}
             title="Noise Suppression Settings"
           >
-            {isNoiseFilterEnabled ? <RNNoiseActiveIcon /> : <RNNoiseIcon />}
+            {isNoiseFilterEnabled ? <NoiseFilterActiveIcon /> : <NoiseFilterIcon />}
           </button>
 
           <button

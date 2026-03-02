@@ -509,6 +509,44 @@ export const ToggleSwitchKnob = style({
   },
 });
 
+// Suppression Level Slider
+export const SuppressionSlider = style({
+  width: '100%',
+  height: '4px',
+  borderRadius: '2px',
+  appearance: 'none',
+  backgroundColor: butter.surfaceActive,
+  cursor: 'pointer',
+  '::-webkit-slider-thumb': {
+    appearance: 'none',
+    width: '14px',
+    height: '14px',
+    borderRadius: '50%',
+    backgroundColor: butter.accent,
+    cursor: 'pointer',
+    border: 'none',
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
+  },
+  '::-moz-range-thumb': {
+    width: '14px',
+    height: '14px',
+    borderRadius: '50%',
+    backgroundColor: butter.accent,
+    cursor: 'pointer',
+    border: 'none',
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
+  },
+  '::-webkit-slider-runnable-track': {
+    height: '4px',
+    borderRadius: '2px',
+  },
+  '::-moz-range-track': {
+    height: '4px',
+    borderRadius: '2px',
+    backgroundColor: butter.surfaceActive,
+  },
+});
+
 // ===========================================
 // DEVICE SELECTOR MENU
 // ===========================================

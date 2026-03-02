@@ -12,7 +12,7 @@ import {
   VideoPresets,
 } from "livekit-client";
 
-import { useRNNoiseFilter } from "./useRNNoiseFilter";
+import { useDeepFilterNet } from "./useDeepFilterNet";
 const LIVEKIT_URL = "wss://livekit.endershare.org";
 const TOKEN_SERVER_URL = "https://token.endershare.org";
 const DIAGNOSTICS_URL = "https://token.endershare.org/diagnostics";
@@ -65,6 +65,9 @@ interface LiveKitContextValue {
   isNoiseFilterEnabled: boolean;
   isNoiseFilterPending: boolean;
   setNoiseFilterEnabled: (enabled: boolean) => Promise<void>;
+  suppressionLevel: number;
+  setSuppressionLevel: (level: number) => void;
+  isNoiseFilterSupported: boolean;
 }
 
 const LiveKitContext = createContext<LiveKitContextValue | null>(null);
@@ -83,7 +86,7 @@ export function LiveKitProvider({ children }: { children: ReactNode }) {
   const [participantVolumes, setParticipantVolumes] = useState<Record<string, number>>({});
   const roomRef = useRef<Room | null>(null);
   const [microphoneTrack, setMicrophoneTrack] = useState<any>(null);
-  const rnnoiseFilter = useRNNoiseFilter(microphoneTrack);
+  const noiseFilter = useDeepFilterNet(microphoneTrack);
   const audioContainerRef = useRef<HTMLDivElement | null>(null);
   const screenShareVideoRef = useRef<HTMLVideoElement | null>(null);
   const diagnosticsIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -375,9 +378,12 @@ export function LiveKitProvider({ children }: { children: ReactNode }) {
       setShowVoiceView,
       getScreenShareElement,
       setParticipantVolume,
-      isNoiseFilterEnabled: rnnoiseFilter.isNoiseFilterEnabled,
-      isNoiseFilterPending: rnnoiseFilter.isNoiseFilterPending,
-      setNoiseFilterEnabled: rnnoiseFilter.setNoiseFilterEnabled
+      isNoiseFilterEnabled: noiseFilter.isNoiseFilterEnabled,
+      isNoiseFilterPending: noiseFilter.isNoiseFilterPending,
+      setNoiseFilterEnabled: noiseFilter.setNoiseFilterEnabled,
+      suppressionLevel: noiseFilter.suppressionLevel,
+      setSuppressionLevel: noiseFilter.setSuppressionLevel,
+      isNoiseFilterSupported: noiseFilter.isSupported
     }}>
       {children}
     </LiveKitContext.Provider>
