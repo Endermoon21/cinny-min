@@ -107,14 +107,26 @@ export const ParticipantTileSpeaking = style({
 // Legacy - keep for compatibility
 export const Speaking = style({});
 
+// Container for video element - fills tile, centers content
+export const TileVideoContainer = style({
+  position: "absolute",
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  overflow: "hidden",
+});
+
+// Container for avatar - fills tile, centers avatar
 export const TileAvatarContainer = style({
   position: "absolute",
   top: 0,
   left: 0,
   right: 0,
   bottom: 0,
-  width: "100%",
-  height: "100%",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",

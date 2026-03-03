@@ -518,7 +518,7 @@ function ParticipantTile({ participant, avatarUrl, displayName, isStreamTile, st
       >
         {hasVideo ? (
           // Show video (camera or stream)
-          <div ref={videoContainerRef} style={{ width: "100%", height: "100%", position: "absolute", top: 0, left: 0 }} />
+          <div ref={videoContainerRef} className={css.TileVideoContainer} />
         ) : (
           // Show avatar
           <div className={css.TileAvatarContainer}>
