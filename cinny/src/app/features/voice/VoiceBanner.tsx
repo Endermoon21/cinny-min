@@ -5,19 +5,22 @@ import { PingVisualizer } from './PingVisualizer';
 import { MediaControlsRow } from './MediaControlsRow';
 import * as css from './voicePanel.css';
 
-// Discord-style icons (20px for panel buttons)
-// Noise filter uses same icon - color changes via CSS when active
+// Icons (stroke style)
 const NoiseFilterIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M3 9v6h2V9H3Zm4-3v12h2V6H7Zm4-3v18h2V3h-2Zm4 5v8h2V8h-2Zm4-3v14h2V5h-2Z" />
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 10v4" />
+    <path d="M6 6v12" />
+    <path d="M10 3v18" />
+    <path d="M14 8v8" />
+    <path d="M18 5v14" />
+    <path d="M22 10v4" />
   </svg>
 );
 
-// Simple phone disconnect icon (phone with X)
+// Disconnect icon - phone hanging up (no slash)
 const DisconnectIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08a.956.956 0 0 1-.29-.7c0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.1-.7-.28-.79-.73-1.68-1.36-2.66-1.85a.996.996 0 0 1-.56-.9v-3.1C15.15 9.25 13.6 9 12 9Z" />
-    <path d="M18.59 5L20 6.41 13.41 13 20 19.59 18.59 21 12 14.41 5.41 21 4 19.59 10.59 13 4 6.41 5.41 5 12 11.59 18.59 5Z" />
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
   </svg>
 );
 

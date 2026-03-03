@@ -429,22 +429,14 @@ export const NoiseFilterBtn = style({
   },
 });
 
-// Pulsing animation for noise filter active state
-const noiseFilterPulse = keyframes({
-  '0%': { boxShadow: '0 0 4px rgba(35, 165, 90, 0.4)' },
-  '50%': { boxShadow: '0 0 12px rgba(35, 165, 90, 0.6)' },
-  '100%': { boxShadow: '0 0 4px rgba(35, 165, 90, 0.4)' },
-});
-
-// Discord March 2025 style - green glow with pulse animation when active
+// Green glow when noise filter active (no animation to avoid crashes)
 export const NoiseFilterBtnActive = style({
   backgroundColor: 'rgba(35, 165, 90, 0.2)',
   color: butter.success,
-  animation: `${noiseFilterPulse} 2s ease-in-out infinite`,
+  boxShadow: '0 0 8px rgba(35, 165, 90, 0.4)',
   ':hover': {
     backgroundColor: 'rgba(35, 165, 90, 0.3)',
     color: butter.success,
-    animation: 'none',
     boxShadow: '0 0 12px rgba(35, 165, 90, 0.5)',
   },
 });
