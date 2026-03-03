@@ -88,9 +88,12 @@ export const ChannelItemDragging = style({
 });
 
 export const ChannelItemVoiceConnected = style({
-  backgroundColor: `${color.Success.Container}33`,
-  ':hover': {
-    backgroundColor: `${color.Success.Container}44`,
+  backgroundColor: `${color.Success.Container}40`,
+
+  selectors: {
+    '&:hover': {
+      backgroundColor: `${color.Success.Container}60`,
+    },
   },
 });
 
@@ -137,7 +140,8 @@ export const ChannelIcon = style({
   width: '20px',
   height: '20px',
   color: color.Surface.OnContainer,
-  opacity: 0.7,
+  opacity: 0.85,
+  flexShrink: 0,
 });
 
 export const ChannelIconVoice = style({
