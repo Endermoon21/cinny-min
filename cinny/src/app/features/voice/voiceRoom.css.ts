@@ -77,7 +77,7 @@ export const ParticipantGrid = style({
   flexDirection: "column",
   gap: "8px",
   width: "100%",
-  maxWidth: "700px",
+  maxWidth: "550px",
   flex: 1,
   minHeight: 0,
 });
