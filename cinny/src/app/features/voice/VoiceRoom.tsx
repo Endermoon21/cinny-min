@@ -455,24 +455,24 @@ function ParticipantTile({ participant, avatarUrl, displayName }: ParticipantTil
           </div>
         )}
 
-        {/* Status overlays - show on top of video or avatar */}
-        <div className={css.TileAvatarContainer} style={{ position: "absolute", bottom: "50px", right: "12px" }}>
+        {/* Status icons - positioned in bottom right corner */}
+        <div style={{ position: "absolute", bottom: "50px", right: "12px", display: "flex", gap: "4px" }}>
           {participant.isScreenSharing && (
-            <div className={classNames(css.TileStatusOverlay, css.TileStatusScreenShare)} style={{ position: "relative", bottom: "auto", right: "auto", marginRight: "4px" }}>
+            <div className={classNames(css.TileStatusOverlay, css.TileStatusScreenShare)} style={{ position: "relative" }}>
               <ScreenShareSmallIcon />
             </div>
           )}
           {participant.isCameraEnabled && (
-            <div className={classNames(css.TileStatusOverlay, css.TileStatusCamera)} style={{ position: "relative", bottom: "auto", right: "auto", marginRight: "4px" }}>
+            <div className={classNames(css.TileStatusOverlay, css.TileStatusCamera)} style={{ position: "relative" }}>
               <CameraSmallIcon />
             </div>
           )}
           {isLocalMuted ? (
-            <div className={classNames(css.TileStatusOverlay, css.TileStatusMuted)} style={{ position: "relative", bottom: "auto", right: "auto" }}>
+            <div className={classNames(css.TileStatusOverlay, css.TileStatusMuted)} style={{ position: "relative" }}>
               <VolumeMuteIcon />
             </div>
           ) : participant.isMuted && (
-            <div className={classNames(css.TileStatusOverlay, css.TileStatusMuted)} style={{ position: "relative", bottom: "auto", right: "auto" }}>
+            <div className={classNames(css.TileStatusOverlay, css.TileStatusMuted)} style={{ position: "relative" }}>
               <MicOffSmallIcon />
             </div>
           )}

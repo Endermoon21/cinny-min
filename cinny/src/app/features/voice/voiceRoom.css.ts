@@ -44,6 +44,8 @@ export const MainArea = style({
   flex: 1,
   display: "flex",
   flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
   padding: "16px 8px",
   overflow: "hidden",
   minHeight: 0,
@@ -68,16 +70,14 @@ export const QualityGood = style({ backgroundColor: "rgba(35, 165, 90, 0.2)", co
 export const QualityPoor = style({ backgroundColor: "rgba(250, 166, 26, 0.2)", color: "#f0b232" });
 export const QualityBad = style({ backgroundColor: "rgba(242, 63, 67, 0.2)", color: "#f23f43" });
 
-// Discord-style: grid that fills available space
+// Discord-style: grid that fills available space with constraints
 export const ParticipantGrid = style({
-  display: "grid",
-  gridTemplateColumns: "1fr",
-  gridAutoRows: "1fr",
+  display: "flex",
+  flexDirection: "column",
   gap: "8px",
   width: "100%",
-  height: "100%",
-  flex: 1,
-  minHeight: 0,
+  maxWidth: "800px",
+  maxHeight: "100%",
 });
 
 // Discord-style: large landscape tile with colored background
@@ -88,8 +88,9 @@ export const ParticipantTile = style({
   position: "relative",
   borderRadius: "8px",
   width: "100%",
-  height: "100%",
-  minHeight: 0,
+  minHeight: "120px",
+  maxHeight: "300px",
+  flex: 1,
   backgroundColor: "#5865f2", // Default Discord blurple, will be overridden per-user
   transition: `background-color 0.15s ${discordEase}, box-shadow 0.15s ${discordEase}`,
   cursor: "default",
@@ -468,8 +469,9 @@ export const TileWrapper = style({
   position: "relative",
   display: "flex",
   width: "100%",
-  height: "100%",
-  minHeight: 0,
+  flex: 1,
+  minHeight: "120px",
+  maxHeight: "300px",
 });
 
 // Legacy exports
