@@ -560,25 +560,15 @@ function ParticipantTile({ participant, avatarUrl, displayName, isStreamTile, st
           </div>
         )}
 
-        {/* Activity badges - top left */}
-        <div className={css.TileActivityBadges}>
-          {isStreamTile && (
+        {/* LIVE badge - only on stream tiles */}
+        {isStreamTile && (
+          <div className={css.TileActivityBadges}>
             <span className={css.LiveBadgeSmall}>LIVE</span>
-          )}
-          {participant.isCameraEnabled && !isStreamTile && (
-            <span className={css.CameraBadge}>
-              <CameraSmallIcon />
-            </span>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Status icons - bottom right */}
         <div style={{ position: "absolute", bottom: "50px", right: "12px", display: "flex", gap: "4px" }}>
-          {participant.isScreenSharing && !isStreamTile && (
-            <div className={classNames(css.TileStatusOverlay, css.TileStatusScreenShare)} style={{ position: "relative" }}>
-              <ScreenShareSmallIcon />
-            </div>
-          )}
           {isLocalMuted ? (
             <div className={classNames(css.TileStatusOverlay, css.TileStatusMuted)} style={{ position: "relative" }}>
               <VolumeMuteIcon />
