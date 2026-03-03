@@ -421,9 +421,10 @@ interface ParticipantTileProps {
   displayName: string;
   isStreamTile?: boolean;
   streamVideoElement?: HTMLVideoElement | null;
+  isLive?: boolean; // Show LIVE badge (participant has active stream)
 }
 
-function ParticipantTile({ participant, avatarUrl, displayName, isStreamTile, streamVideoElement }: ParticipantTileProps) {
+function ParticipantTile({ participant, avatarUrl, displayName, isStreamTile, streamVideoElement, isLive }: ParticipantTileProps) {
   const [showPopup, setShowPopup] = useState(false);
   const [showControls, setShowControls] = useState(false);
   const { participantVolumes, getCameraElement } = useLiveKitContext();
@@ -560,8 +561,8 @@ function ParticipantTile({ participant, avatarUrl, displayName, isStreamTile, st
           </div>
         )}
 
-        {/* LIVE badge - only on stream tiles */}
-        {isStreamTile && (
+        {/* LIVE badge - on stream tiles or when participant is streaming */}
+        {(isStreamTile || isLive) && (
           <div className={css.TileActivityBadges}>
             <span className={css.LiveBadgeSmall}>LIVE</span>
           </div>
@@ -676,6 +677,13 @@ export function VoiceRoom() {
           // Filter out ingress users (identity ending with -stream)
           const visibleParticipants = participants.filter(p => !p.identity.endsWith("-stream"));
 
+          // Get identities of active streamers (ingress participants)
+          const activeStreamerIds = new Set(
+            participants
+              .filter(p => p.identity.endsWith("-stream"))
+              .map(p => p.identity.replace(/-stream$/, ""))
+          );
+
           // Get stream video element if someone is screen sharing
           const streamVideoEl = screenShareInfo ? getScreenShareElement() : null;
 
@@ -709,6 +717,7 @@ export function VoiceRoom() {
                     participant={p}
                     avatarUrl={profileCache[p.identity]?.avatarUrl}
                     displayName={profileCache[p.identity]?.displayName || p.name}
+                    isLive={activeStreamerIds.has(p.identity)}
                   />
                 ))}
               </div>
