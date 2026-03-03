@@ -11,8 +11,9 @@ const dropPulse = keyframes({
 export const CategoryHeader = style({
   display: 'flex',
   alignItems: 'center',
-  gap: config.space.S100,
-  padding: `${config.space.S100} ${config.space.S200}`,
+  gap: config.space.S200,
+  padding: `${config.space.S200} ${config.space.S300}`,
+  marginTop: config.space.S300,
   cursor: 'grab',
   userSelect: 'none',
   borderRadius: config.radii.R300,
@@ -25,6 +26,10 @@ export const CategoryHeader = style({
 
   ':active': {
     cursor: 'grabbing',
+  },
+
+  ':first-child': {
+    marginTop: 0,
   },
 });
 
@@ -56,9 +61,10 @@ export const CategoryName = style({
 export const ChannelItem = style({
   display: 'flex',
   alignItems: 'center',
-  gap: config.space.S200,
-  padding: `${config.space.S100} ${config.space.S200}`,
-  marginLeft: config.space.S200,
+  gap: config.space.S300,
+  padding: `${config.space.S200} ${config.space.S300}`,
+  marginLeft: config.space.S300,
+  marginTop: config.space.S50,
   borderRadius: config.radii.R300,
   cursor: 'grab',
   transition: 'background 0.15s',
@@ -147,7 +153,8 @@ export const ChannelName = style({
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   whiteSpace: 'nowrap',
-  fontSize: config.fontSize.T300,
+  fontSize: config.fontSize.T400,
+  fontWeight: 500,
   color: color.Surface.OnContainer,
 });
 
