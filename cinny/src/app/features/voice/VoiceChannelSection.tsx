@@ -226,6 +226,7 @@ export function VoiceChannelSection() {
                 onMouseEnter={() => setHoveredRoom(room.name)}
                 onMouseLeave={() => setHoveredRoom(null)}
                 data-hovered={isHovered}
+                data-voice-channel="true"
               >
                 <Box
                   as="button"

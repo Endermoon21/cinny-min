@@ -66,6 +66,18 @@ export function PageNav({
 }: ClientDrawerLayoutProps & css.PageNavVariants) {
   const screenSize = useScreenSizeContext();
   const isMobile = screenSize === ScreenSize.Mobile;
+  const { showVoiceView, setShowVoiceView } = useLiveKitContext();
+
+  // Hide voice view when clicking anywhere in the nav (except voice channel itself)
+  const handleNavClick = useCallback((e: React.MouseEvent) => {
+    // Don't hide if clicking on voice channel elements
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-voice-channel]')) return;
+
+    if (showVoiceView) {
+      setShowVoiceView(false);
+    }
+  }, [showVoiceView, setShowVoiceView]);
 
   // Resizable sidebar state
   const [sidebarWidth, setSidebarWidth] = useState(() => {
@@ -145,6 +157,7 @@ export function PageNav({
       shrink={isMobile ? "Yes" : "No"}
       direction="Column"
       style={{ ...widthStyle, position: 'relative' }}
+      onClick={handleNavClick}
     >
       <Box grow="Yes" direction="Column" style={{ minHeight: 0, overflow: "hidden" }}>
         {children}

@@ -1,7 +1,7 @@
 {
   "package": {
     "productName": "Cinny-Min",
-    "version": "4.11.51"
+    "version": "4.11.52"
   },
   "build": {
     "withGlobalTauri": true,
@@ -65,7 +65,7 @@
       "dialog": false,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDYxMDE1OEFBM0MyNkUwMzMKUldRejRDWThxbGdCWWJVbUhUa2JvRFM0REhCaDlFZjgrMHFmejlvL0h3d1oyaWRVK3BNV1dIdWEK",
       "windows": {
-        "installMode": "passive"
+        "installMode": "basicUi"
       }
     },
     "allowlist": {
