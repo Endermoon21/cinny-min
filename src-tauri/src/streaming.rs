@@ -84,6 +84,18 @@ impl Default for StreamingState {
     }
 }
 
+impl Drop for StreamingState {
+    fn drop(&mut self) {
+        // Clean up pipeline when app is closed
+        if let Ok(mut pipeline_lock) = self.pipeline.lock() {
+            if let Some(pipeline) = pipeline_lock.take() {
+                log::info!("Cleaning up streaming pipeline on app exit");
+                let _ = pipeline.set_state(gst::State::Null);
+            }
+        }
+    }
+}
+
 /// Log to debug file (Windows) or system log (other platforms)
 fn log_to_file(message: &str) {
     #[cfg(target_os = "windows")]

@@ -13,7 +13,7 @@ import {
 } from "livekit-client";
 
 import { useNoiseFilter } from "./useNoiseFilter";
-import { isNativeStreamingAvailable, getNativeStreamStatus } from "./nativeStreaming";
+import { isNativeStreamingAvailable, getNativeStreamStatus, stopNativeStream } from "./nativeStreaming";
 const LIVEKIT_URL = "wss://livekit.endershare.org";
 const TOKEN_SERVER_URL = "https://token.endershare.org";
 const DIAGNOSTICS_URL = "https://token.endershare.org/diagnostics";
@@ -157,6 +157,24 @@ export function LiveKitProvider({ children }: { children: ReactNode }) {
     document.body.appendChild(container);
     audioContainerRef.current = container;
     return () => { container.remove(); };
+  }, []);
+
+  // Stop streaming when app/window is closed
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (isNativeStreamingAvailable()) {
+        // Use sync invoke if available, otherwise fire and forget
+        stopNativeStream().catch(() => {});
+      }
+      if (roomRef.current) {
+        try { roomRef.current.disconnect(); } catch (e) {}
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
   }, []);
 
 // Handle incoming screen share tracks from remote participants (including WHIP ingress)
@@ -340,15 +358,24 @@ export function LiveKitProvider({ children }: { children: ReactNode }) {
     } finally { setIsConnecting(false); }
   }, [updateParticipants, handleTrackSubscribed, handleTrackUnsubscribed, startDiagnostics]);
 
-  const disconnect = useCallback(() => {
+  const disconnect = useCallback(async () => {
     stopDiagnostics();
+    // Stop native streaming if active
+    if (isNativeStreamingAvailable() && isNativeStreaming) {
+      try {
+        await stopNativeStream();
+        setIsNativeStreaming(false);
+      } catch (e) {
+        console.error("[LiveKit] Error stopping native stream:", e);
+      }
+    }
     if (roomRef.current) { try { roomRef.current.disconnect(); } catch (e) {} roomRef.current = null; }
     if (audioContainerRef.current) audioContainerRef.current.innerHTML = "";
     // Clean up camera video elements
     cameraVideoRefs.current.forEach((el) => el.remove());
     cameraVideoRefs.current.clear();
     setIsConnected(false); setCurrentRoom(null); setParticipants([]); setIsMuted(true); setIsDeafened(false); setIsCameraEnabled(false); setScreenShareInfo(null); setShowVoiceView(false);
-  }, [stopDiagnostics]);
+  }, [stopDiagnostics, isNativeStreaming]);
 
   const toggleMute = useCallback(async () => {
     const room = roomRef.current; if (!room) return;
@@ -449,6 +476,10 @@ export function LiveKitProvider({ children }: { children: ReactNode }) {
   useEffect(() => { return () => {
     if (diagnosticsIntervalRef.current) clearInterval(diagnosticsIntervalRef.current);
     if (nativeStreamingIntervalRef.current) clearInterval(nativeStreamingIntervalRef.current);
+    // Stop native streaming on unmount
+    if (isNativeStreamingAvailable()) {
+      stopNativeStream().catch(() => {});
+    }
     if (roomRef.current) { try { roomRef.current.disconnect(); } catch (e) {} }
   }; }, []);
 
