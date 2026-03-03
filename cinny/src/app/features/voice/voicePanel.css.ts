@@ -34,31 +34,14 @@ const discordEase = 'cubic-bezier(0.4, 0, 0.2, 1)';
 // ===========================================
 // VOICE PANEL CONTAINER
 // ===========================================
-// Uses CSS variable --voice-panel-width which is measured dynamically from the
-// actual PageNav element's right edge position. This ensures the banner always
-// connects exactly with the sidebar edge regardless of borders/padding.
-// z-index: 0 to stay below all modals/overlays (folds uses 9999)
+// Rendered directly within sidebar (no Portal), positioned at bottom
 export const VoicePanel = style({
-  position: 'fixed',
-  bottom: 0,
-  left: 0,
-  // Dynamic width: measured from PageNav.getBoundingClientRect().right
-  width: 'var(--voice-panel-width, 324px)',
   display: 'flex',
   flexDirection: 'column',
   backgroundColor: butter.surface,
   borderTop: `1px solid ${butter.border}`,
-  zIndex: 0, // At base level, below all modals/overlays
-  // Tablet breakpoint (1124px and below) - just channel sidebar width + buffer
-  '@media': {
-    'screen and (max-width: 1124px)': {
-      width: 'var(--voice-panel-width, 260px)',
-    },
-    // Mobile breakpoint (750px and below) - full width
-    'screen and (max-width: 750px)': {
-      width: '100%',
-    },
-  },
+  flexShrink: 0,
+  width: '100%',
 });
 
 // ===========================================

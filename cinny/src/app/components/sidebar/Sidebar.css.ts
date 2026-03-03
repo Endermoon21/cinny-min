@@ -13,8 +13,6 @@ export const Sidebar = style([
     display: 'flex',
     flexDirection: 'column',
     color: color.Background.OnContainer,
-    // Bottom padding to account for fixed VoicePanel overlay
-    paddingBottom: toRem(140),
   },
 ]);
 

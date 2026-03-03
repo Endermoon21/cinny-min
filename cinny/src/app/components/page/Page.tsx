@@ -89,10 +89,6 @@ export function PageNav({
       const newWidth = e.clientX - sidebarRect.left;
       const clampedWidth = Math.min(Math.max(newWidth, SIDEBAR_MIN_WIDTH), SIDEBAR_MAX_WIDTH);
       setSidebarWidth(clampedWidth);
-      // Update CSS variables for VoicePanel
-      document.documentElement.style.setProperty('--sidebar-width', `${clampedWidth}px`);
-      // Update voice panel width dynamically during resize
-      document.documentElement.style.setProperty('--voice-panel-width', `${sidebarRect.left + clampedWidth}px`);
     };
 
     const handleMouseUp = () => {
@@ -109,28 +105,6 @@ export function PageNav({
     };
   }, [isResizing, sidebarWidth]);
 
-  // Update CSS variables for VoicePanel width
-  const updateVoicePanelWidth = useCallback(() => {
-    if (sidebarRef.current) {
-      const rect = sidebarRef.current.getBoundingClientRect();
-      // Set the exact right edge position for VoicePanel
-      document.documentElement.style.setProperty('--voice-panel-width', `${rect.right}px`);
-    }
-  }, []);
-
-  // Set initial CSS variables
-  useEffect(() => {
-    document.documentElement.style.setProperty('--sidebar-width', `${sidebarWidth}px`);
-    // Small delay to ensure DOM is rendered
-    const timeoutId = setTimeout(updateVoicePanelWidth, 50);
-    return () => clearTimeout(timeoutId);
-  }, [sidebarWidth, updateVoicePanelWidth]);
-
-  // Update on window resize
-  useEffect(() => {
-    window.addEventListener('resize', updateVoicePanelWidth);
-    return () => window.removeEventListener('resize', updateVoicePanelWidth);
-  }, [updateVoicePanelWidth]);
 
   // Don't use resizable width on mobile
   const widthStyle = isMobile ? undefined : { width: sidebarWidth, minWidth: sidebarWidth };

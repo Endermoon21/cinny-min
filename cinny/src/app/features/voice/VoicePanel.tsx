@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Portal } from 'folds';
+import { Box } from 'folds';
 import { useLiveKitContext } from './LiveKitContext';
 import { VoiceBanner } from './VoiceBanner';
 import { UserBanner } from './UserBanner';
@@ -8,16 +8,14 @@ import * as css from './voicePanel.css';
 export function VoicePanel() {
   const { isConnected } = useLiveKitContext();
 
-  // Render via Portal with z-index: 0 to stay below modals
+  // Render directly within sidebar (no Portal) to stay in sync with layout
   return (
-    <Portal>
-      <Box className={css.VoicePanel} direction="Column">
-        {/* VoiceBanner only shows when connected */}
-        {isConnected && <VoiceBanner />}
+    <Box className={css.VoicePanel} direction="Column">
+      {/* VoiceBanner only shows when connected */}
+      {isConnected && <VoiceBanner />}
 
-        {/* UserBanner */}
-        <UserBanner />
-      </Box>
-    </Portal>
+      {/* UserBanner */}
+      <UserBanner />
+    </Box>
   );
 }
