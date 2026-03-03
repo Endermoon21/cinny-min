@@ -294,6 +294,18 @@ export const ControlBtnActive = style({
   ":hover": { backgroundColor: "#36383f", color: "#f23f43" },
 });
 
+// Green active state for streaming
+export const ControlBtnGreen = style({
+  backgroundColor: "rgba(35, 165, 90, 0.2)",
+  color: "#23a55a",
+  boxShadow: "0 0 8px rgba(35, 165, 90, 0.4)",
+  ":hover": {
+    backgroundColor: "rgba(35, 165, 90, 0.3)",
+    color: "#23a55a",
+    boxShadow: "0 0 12px rgba(35, 165, 90, 0.5)",
+  },
+});
+
 export const ControlBtnScreen = style({
   backgroundColor: "#248046",
   color: "#fff",

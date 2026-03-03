@@ -180,12 +180,14 @@ const CameraSmallIcon = () => (
   </svg>
 );
 
+// Monitor with X in center (for ending stream)
 const ScreenShareActiveIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M13 3H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3" />
+    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
     <path d="M8 21h8" />
     <path d="M12 17v4" />
-    <circle cx="18" cy="5" r="3" fill="#23a55a" />
+    <path d="M9 7l6 6" />
+    <path d="M15 7l-6 6" />
   </svg>
 );
 
@@ -850,9 +852,9 @@ export function VoiceRoom() {
           </div>
 
           <button
-            className={classNames(css.ControlBtn, { [css.ControlBtnActive]: isStreaming })}
+            className={classNames(css.ControlBtn, { [css.ControlBtnGreen]: isStreaming })}
             onClick={() => setShowStreamModal(true)}
-            title={isStreaming ? "Streaming" : "Share Screen"}
+            title={isStreaming ? "End Stream" : "Share Screen"}
           >
             {isStreaming ? <ScreenShareActiveIcon /> : <ScreenShareIcon />}
           </button>

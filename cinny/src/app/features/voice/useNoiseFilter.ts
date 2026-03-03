@@ -29,6 +29,7 @@ interface AudioGraph {
 export function useNoiseFilter(microphoneTrack?: LocalAudioTrack): UseNoiseFilterReturn {
   const [isNoiseFilterEnabled, setIsNoiseFilterEnabled] = useState(false);
   const [isNoiseFilterPending, setIsNoiseFilterPending] = useState(false);
+  const [hasAutoEnabled, setHasAutoEnabled] = useState(false);
   const audioGraphRef = useRef<AudioGraph | null>(null);
   const wasmBinaryRef = useRef<ArrayBuffer | null>(null);
 
@@ -160,6 +161,15 @@ export function useNoiseFilter(microphoneTrack?: LocalAudioTrack): UseNoiseFilte
       setIsNoiseFilterPending(false);
     }
   }, [microphoneTrack, isSupported, createAudioGraph, destroyAudioGraph]);
+
+  // Auto-enable noise suppression when a track becomes available (on by default)
+  useEffect(() => {
+    if (microphoneTrack && isSupported && !hasAutoEnabled && !isNoiseFilterEnabled && !isNoiseFilterPending) {
+      console.log("[NoiseFilter] Auto-enabling noise suppression...");
+      setHasAutoEnabled(true);
+      setNoiseFilterEnabled(true);
+    }
+  }, [microphoneTrack, isSupported, hasAutoEnabled, isNoiseFilterEnabled, isNoiseFilterPending, setNoiseFilterEnabled]);
 
   // Cleanup on unmount
   useEffect(() => {
