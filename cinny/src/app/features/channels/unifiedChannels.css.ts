@@ -1,4 +1,4 @@
-import { style, keyframes } from '@vanilla-extract/css';
+import { style, keyframes, globalStyle } from '@vanilla-extract/css';
 import { color, config } from 'folds';
 
 // Drop indicator animation
@@ -70,10 +70,6 @@ export const ChannelItem = style({
   transition: 'background 0.15s',
   position: 'relative',
 
-  ':hover': {
-    backgroundColor: color.Surface.ContainerHover,
-  },
-
   ':active': {
     cursor: 'grabbing',
   },
@@ -87,14 +83,24 @@ export const ChannelItemDragging = style({
   opacity: 0.5,
 });
 
+// Voice connected style - defined before adding hover to ChannelItem
 export const ChannelItemVoiceConnected = style({
-  backgroundColor: `${color.Success.Container}40`,
+  backgroundColor: `${color.Success.Container}50`,
 
-  selectors: {
-    '&:hover': {
-      backgroundColor: `${color.Success.Container}60`,
-    },
+  ':hover': {
+    backgroundColor: `${color.Success.Container}70`,
   },
+});
+
+// Add default hover to ChannelItem (after VoiceConnected is defined)
+// This way VoiceConnected hover takes precedence when both classes are applied
+globalStyle(`${ChannelItem}:hover`, {
+  backgroundColor: color.Surface.ContainerHover,
+});
+
+// Override: when voice connected, use green hover
+globalStyle(`${ChannelItem}${ChannelItemVoiceConnected}:hover`, {
+  backgroundColor: `${color.Success.Container}70`,
 });
 
 // Removed - now using full-row dragging
