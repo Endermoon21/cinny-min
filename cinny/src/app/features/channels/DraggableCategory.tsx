@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, ReactNode, MouseEventHandler } from 'react';
+import React, { useRef, useCallback, ReactNode } from 'react';
 import { Box, Icon, Icons } from 'folds';
 import classNames from 'classnames';
 import { useDraggableChannel, useDropTarget, useDropTargetInstruction, ChannelDragData } from './useChannelDnD';
@@ -24,7 +24,6 @@ export function DraggableCategory({
   children,
 }: DraggableCategoryProps) {
   const headerRef = useRef<HTMLDivElement>(null);
-  const dragHandleRef = useRef<HTMLDivElement>(null);
   const aboveTargetRef = useRef<HTMLDivElement>(null);
   const belowTargetRef = useRef<HTMLDivElement>(null);
 
@@ -33,7 +32,8 @@ export function DraggableCategory({
     id,
   };
 
-  const dragging = useDraggableChannel(dragItem, headerRef, onDragging, dragHandleRef);
+  // Full row is draggable (no separate drag handle)
+  const dragging = useDraggableChannel(dragItem, headerRef, onDragging);
   const dropState = useDropTarget(dragItem, headerRef, (dragItem) => {
     // Only allow channels to be dropped into categories
     return dragItem.type === 'channel';
@@ -43,14 +43,6 @@ export function DraggableCategory({
   // Separate drop targets for above/below (for category reordering)
   const orderAbove = useDropTargetInstruction(dragItem, aboveTargetRef, 'reorder-above');
   const orderBelow = useDropTargetInstruction(dragItem, belowTargetRef, 'reorder-below');
-
-  const handleHeaderClick: MouseEventHandler = useCallback((e) => {
-    // Don't toggle if clicking on drag handle
-    if ((e.target as HTMLElement).closest(`.${css.CategoryDragHandle}`)) {
-      return;
-    }
-    onToggle();
-  }, [onToggle]);
 
   return (
     <Box direction="Column" style={{ position: 'relative' }}>
@@ -73,7 +65,7 @@ export function DraggableCategory({
           [css.CategoryHeaderDragging]: dragging,
           [css.DropIndicatorInto]: dropType === 'make-child',
         })}
-        onClick={handleHeaderClick}
+        onClick={onToggle}
         role="button"
         tabIndex={0}
         aria-expanded={!collapsed}
@@ -81,10 +73,6 @@ export function DraggableCategory({
       >
         {orderAbove === 'reorder-above' && <div className={css.DropIndicatorAbove} />}
         {orderBelow === 'reorder-below' && <div className={css.DropIndicatorBelow} />}
-
-        <div ref={dragHandleRef} className={css.CategoryDragHandle}>
-          <Icon src={Icons.VerticalDots} size="50" />
-        </div>
 
         <Icon
           src={Icons.ChevronBottom}

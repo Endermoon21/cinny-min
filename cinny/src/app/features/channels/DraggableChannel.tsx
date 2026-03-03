@@ -1,5 +1,5 @@
 import React, { useRef, useCallback, MouseEventHandler } from 'react';
-import { Box, Icon, Icons, IconButton, Text } from 'folds';
+import { Box } from 'folds';
 import classNames from 'classnames';
 import { useNavigate } from 'react-router-dom';
 import type { Room } from 'matrix-js-sdk';
@@ -84,7 +84,6 @@ export function DraggableChannel({
 }: DraggableChannelProps) {
   const navigate = useNavigate();
   const targetRef = useRef<HTMLDivElement>(null);
-  const dragHandleRef = useRef<HTMLDivElement>(null);
 
   const { isConnected, currentRoom, setShowVoiceView } = useLiveKitContext();
   const { formatted: formattedDuration } = useCallDuration(isConnected);
@@ -99,7 +98,8 @@ export function DraggableChannel({
     channelType: channel.type,
   };
 
-  const dragging = useDraggableChannel(dragItem, targetRef, onDragging, dragHandleRef);
+  // Full row is draggable (no separate drag handle)
+  const dragging = useDraggableChannel(dragItem, targetRef, onDragging);
   const dropState = useDropTarget(dragItem, targetRef);
   const dropType = dropState?.type;
 
@@ -137,10 +137,6 @@ export function DraggableChannel({
       >
         {dropType === 'reorder-above' && <div className={css.DropIndicatorAbove} />}
         {dropType === 'reorder-below' && <div className={css.DropIndicatorBelow} />}
-
-        <div ref={dragHandleRef} className={css.ChannelDragHandle}>
-          <Icon src={Icons.VerticalDots} size="50" />
-        </div>
 
         {isVoice ? (
           <VoiceIcon connected={isCurrentVoiceRoom} />

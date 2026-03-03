@@ -13,13 +13,18 @@ export const CategoryHeader = style({
   alignItems: 'center',
   gap: config.space.S100,
   padding: `${config.space.S100} ${config.space.S200}`,
-  cursor: 'pointer',
+  cursor: 'grab',
   userSelect: 'none',
   borderRadius: config.radii.R300,
   transition: 'background 0.15s',
+  position: 'relative',
 
   ':hover': {
     backgroundColor: color.Surface.ContainerHover,
+  },
+
+  ':active': {
+    cursor: 'grabbing',
   },
 });
 
@@ -45,21 +50,7 @@ export const CategoryName = style({
   color: color.Surface.OnContainer,
 });
 
-export const CategoryDragHandle = style({
-  opacity: 0,
-  cursor: 'grab',
-  color: color.Surface.OnContainer,
-  transition: 'opacity 0.15s',
-
-  selectors: {
-    [`${CategoryHeader}:hover &`]: {
-      opacity: 0.6,
-    },
-    [`${CategoryHeader}:hover &:hover`]: {
-      opacity: 1,
-    },
-  },
-});
+// Removed - now using full-row dragging
 
 // Channel item
 export const ChannelItem = style({
@@ -69,12 +60,16 @@ export const ChannelItem = style({
   padding: `${config.space.S100} ${config.space.S200}`,
   marginLeft: config.space.S200,
   borderRadius: config.radii.R300,
-  cursor: 'pointer',
+  cursor: 'grab',
   transition: 'background 0.15s',
   position: 'relative',
 
   ':hover': {
     backgroundColor: color.Surface.ContainerHover,
+  },
+
+  ':active': {
+    cursor: 'grabbing',
   },
 });
 
@@ -93,21 +88,7 @@ export const ChannelItemVoiceConnected = style({
   },
 });
 
-export const ChannelDragHandle = style({
-  opacity: 0,
-  cursor: 'grab',
-  color: color.Surface.OnContainer,
-  transition: 'opacity 0.15s',
-
-  selectors: {
-    [`${ChannelItem}:hover &`]: {
-      opacity: 0.6,
-    },
-    [`${ChannelItem}:hover &:hover`]: {
-      opacity: 1,
-    },
-  },
-});
+// Removed - now using full-row dragging
 
 // Drop indicators
 export const DropIndicatorAbove = style({

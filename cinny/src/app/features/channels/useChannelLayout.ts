@@ -27,6 +27,7 @@ export interface UseChannelLayoutResult {
   categories: UnifiedCategory[];
   voiceRooms: VoiceRoom[];
   isLoading: boolean;
+  isSyncing: boolean;
   error: string | null;
   moveChannel: (
     channelId: string,
@@ -34,14 +35,14 @@ export interface UseChannelLayoutResult {
     fromCategoryId: string,
     toCategoryId: string,
     newOrder: number
-  ) => Promise<void>;
+  ) => void;
   reorderChannel: (
     categoryId: string,
     channelId: string,
     channelType: ChannelType,
     newOrder: number
-  ) => Promise<void>;
-  reorderCategory: (categoryId: string, newOrder: number) => Promise<void>;
+  ) => void;
+  reorderCategory: (categoryId: string, newOrder: number) => void;
   toggleCategoryCollapsed: (categoryId: string) => void;
   refreshLayout: () => Promise<void>;
 }
@@ -53,6 +54,7 @@ export function useChannelLayout({ spaceId }: UseChannelLayoutOptions): UseChann
   const [layout, setLayout] = useState<ChannelLayout | null>(null);
   const [voiceRooms, setVoiceRooms] = useState<VoiceRoom[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Local collapsed state (works even without stored layout)
@@ -87,21 +89,29 @@ export function useChannelLayout({ spaceId }: UseChannelLayoutOptions): UseChann
     }
   }, [spaceId]);
 
-  // Save layout to token server
-  const saveLayout = useCallback(async (newLayout: ChannelLayout) => {
-    try {
-      const response = await fetch(`${TOKEN_SERVER_URL}/channel-layout/${encodeURIComponent(spaceId)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ categories: newLayout.categories }),
+  // Save layout to token server (non-blocking, fire and forget)
+  const saveLayoutToServer = useCallback((newLayout: ChannelLayout) => {
+    setIsSyncing(true);
+    setError(null);
+
+    fetch(`${TOKEN_SERVER_URL}/channel-layout/${encodeURIComponent(spaceId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ categories: newLayout.categories }),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('Failed to save layout');
+        }
+        console.debug('[ChannelLayout] Synced to server');
+      })
+      .catch((e) => {
+        console.error('Failed to sync channel layout:', e);
+        setError('Failed to sync changes');
+      })
+      .finally(() => {
+        setIsSyncing(false);
       });
-      if (!response.ok) {
-        throw new Error('Failed to save layout');
-      }
-    } catch (e) {
-      console.error('Failed to save channel layout:', e);
-      throw e;
-    }
   }, [spaceId]);
 
   // Initial fetch
@@ -224,8 +234,8 @@ export function useChannelLayout({ spaceId }: UseChannelLayoutOptions): UseChann
     return result;
   }, [mx, spaceId, allRooms, layout, voiceRooms, collapsedCategories]);
 
-  // Move channel between categories
-  const moveChannel = useCallback(async (
+  // Move channel between categories (optimistic update)
+  const moveChannel = useCallback((
     channelId: string,
     channelType: ChannelType,
     fromCategoryId: string,
@@ -258,17 +268,15 @@ export function useChannelLayout({ spaceId }: UseChannelLayoutOptions): UseChann
       version: (layout?.version || 0) + 1,
     };
 
+    // Optimistic update - local state first
     setLayout(newLayout);
 
-    try {
-      await saveLayout(newLayout);
-    } catch {
-      setError('Failed to save channel order');
-    }
-  }, [categories, spaceId, layout, saveLayout]);
+    // Sync to server in background
+    saveLayoutToServer(newLayout);
+  }, [categories, spaceId, layout, saveLayoutToServer]);
 
-  // Reorder channel within category
-  const reorderChannel = useCallback(async (
+  // Reorder channel within category (optimistic update)
+  const reorderChannel = useCallback((
     categoryId: string,
     channelId: string,
     channelType: ChannelType,
@@ -291,17 +299,15 @@ export function useChannelLayout({ spaceId }: UseChannelLayoutOptions): UseChann
       version: (layout?.version || 0) + 1,
     };
 
+    // Optimistic update - local state first
     setLayout(newLayout);
 
-    try {
-      await saveLayout(newLayout);
-    } catch {
-      setError('Failed to save channel order');
-    }
-  }, [categories, spaceId, layout, saveLayout]);
+    // Sync to server in background
+    saveLayoutToServer(newLayout);
+  }, [categories, spaceId, layout, saveLayoutToServer]);
 
-  // Reorder category
-  const reorderCategory = useCallback(async (categoryId: string, newOrder: number) => {
+  // Reorder category (optimistic update)
+  const reorderCategory = useCallback((categoryId: string, newOrder: number) => {
     const newCategories = [...categories];
     const oldIndex = newCategories.findIndex(c => c.id === categoryId);
     if (oldIndex === -1) return;
@@ -316,14 +322,12 @@ export function useChannelLayout({ spaceId }: UseChannelLayoutOptions): UseChann
       version: (layout?.version || 0) + 1,
     };
 
+    // Optimistic update - local state first
     setLayout(newLayout);
 
-    try {
-      await saveLayout(newLayout);
-    } catch {
-      setError('Failed to save category order');
-    }
-  }, [categories, spaceId, layout, saveLayout]);
+    // Sync to server in background
+    saveLayoutToServer(newLayout);
+  }, [categories, spaceId, layout, saveLayoutToServer]);
 
   // Toggle category collapsed state (local state only, doesn't persist)
   const toggleCategoryCollapsed = useCallback((categoryId: string) => {
@@ -350,6 +354,7 @@ export function useChannelLayout({ spaceId }: UseChannelLayoutOptions): UseChann
     categories,
     voiceRooms,
     isLoading,
+    isSyncing,
     error,
     moveChannel,
     reorderChannel,
