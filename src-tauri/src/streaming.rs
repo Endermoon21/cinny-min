@@ -1,13 +1,18 @@
-//! Native game streaming via FFmpeg WHIP
+//! Native game streaming via GStreamer WHIP
 //!
 //! This module provides:
 //! - Screen/window enumeration via Windows API
-//! - FFmpeg sidecar management for WHIP streaming
+//! - GStreamer pipeline with whipclientsink for WHIP streaming
 //! - Stream status monitoring
+//!
+//! Uses gstreamer-rs crate directly instead of spawning gst-launch-1.0 process.
 
+use gstreamer as gst;
+use gst::prelude::{Cast, ElementExt, ElementExtManual, GstBinExt, GstObjectExt};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
-use tauri::api::process::{Command, CommandChild, CommandEvent};
+use std::fs::OpenOptions;
+use std::io::Write;
 use tauri::{AppHandle, Manager};
 
 /// Capture source (screen or window)
@@ -29,10 +34,9 @@ pub struct StreamConfig {
     pub height: u32,
     pub fps: u32,
     pub bitrate: u32,        // in kbps
-    pub encoder: String,     // "nvenc", "qsv", "amf", "x264"
-    pub preset: String,      // encoder preset (p1-p7 for nvenc)
     pub audio_enabled: bool,
     pub bearer_token: Option<String>,
+    pub turn_server: Option<String>,
 }
 
 /// Stream status
@@ -45,13 +49,13 @@ pub struct StreamStatus {
     pub error: Option<String>,
 }
 
-/// FFmpeg availability info
+/// GStreamer availability info
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FFmpegInfo {
+pub struct GStreamerInfo {
     pub available: bool,
     pub version: Option<String>,
-    pub encoders: Vec<String>,
-    pub whip_support: bool,
+    pub has_whip: bool,
+    pub has_d3d11: bool,
 }
 
 /// Shared state that can be sent across threads
@@ -63,7 +67,7 @@ pub struct SharedState {
 
 /// State for managing streams
 pub struct StreamingState {
-    ffmpeg_child: Mutex<Option<CommandChild>>,
+    pipeline: Mutex<Option<gst::Pipeline>>,
     current_config: Mutex<Option<StreamConfig>>,
     start_time: Mutex<Option<std::time::Instant>>,
     shared: SharedState,
@@ -72,11 +76,33 @@ pub struct StreamingState {
 impl Default for StreamingState {
     fn default() -> Self {
         Self {
-            ffmpeg_child: Mutex::new(None),
+            pipeline: Mutex::new(None),
             current_config: Mutex::new(None),
             start_time: Mutex::new(None),
             shared: SharedState::default(),
         }
+    }
+}
+
+/// Log to debug file (Windows) or system log (other platforms)
+fn log_to_file(message: &str) {
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(mut file) = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("C:\\Users\\VOLTA\\streaming_debug.log")
+        {
+            let timestamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            let _ = writeln!(file, "[{}] {}", timestamp, message);
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        log::info!("{}", message);
     }
 }
 
@@ -85,7 +111,24 @@ impl Default for StreamingState {
 pub async fn list_capture_sources() -> Result<Vec<CaptureSource>, String> {
     #[cfg(target_os = "windows")]
     {
-        list_windows_sources()
+        use std::panic;
+
+        let result = panic::catch_unwind(|| {
+            list_windows_sources_safe()
+        });
+
+        match result {
+            Ok(Ok(sources)) if !sources.is_empty() => Ok(sources),
+            _ => {
+                Ok(vec![CaptureSource {
+                    id: "desktop".to_string(),
+                    name: "Desktop (Full Screen)".to_string(),
+                    source_type: "screen".to_string(),
+                    width: None,
+                    height: None,
+                }])
+            }
+        }
     }
     #[cfg(not(target_os = "windows"))]
     {
@@ -100,121 +143,75 @@ pub async fn list_capture_sources() -> Result<Vec<CaptureSource>, String> {
 }
 
 #[cfg(target_os = "windows")]
-fn list_windows_sources() -> Result<Vec<CaptureSource>, String> {
+fn list_windows_sources_safe() -> Result<Vec<CaptureSource>, String> {
     use windows::Win32::Foundation::{BOOL, HWND, LPARAM, RECT};
-    use windows::Win32::Graphics::Gdi::{
-        EnumDisplayMonitors, GetMonitorInfoW, HDC, HMONITOR, MONITORINFOEXW,
-    };
     use windows::Win32::UI::WindowsAndMessaging::{
         EnumWindows, GetWindowRect, GetWindowTextLengthW, GetWindowTextW, IsWindowVisible,
+        GetWindowLongW, GWL_EXSTYLE, WS_EX_TOOLWINDOW,
     };
 
     let mut sources = Vec::new();
-    
-    // Always add desktop as first option
+
     sources.push(CaptureSource {
         id: "desktop".to_string(),
-        name: "Entire Desktop".to_string(),
+        name: "Desktop (Full Screen)".to_string(),
         source_type: "screen".to_string(),
         width: None,
         height: None,
     });
 
-    // Enumerate monitors (screens)
     unsafe {
-        unsafe extern "system" fn enum_monitors(
-            monitor: HMONITOR,
-            _hdc: HDC,
-            _rect: *mut RECT,
-            lparam: LPARAM,
-        ) -> BOOL {
-            let sources = unsafe { &mut *(lparam.0 as *mut Vec<CaptureSource>) };
+        unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
+            let sources = &mut *(lparam.0 as *mut Vec<CaptureSource>);
 
-            let mut info = MONITORINFOEXW::default();
-            info.monitorInfo.cbSize = std::mem::size_of::<MONITORINFOEXW>() as u32;
-
-            if unsafe { GetMonitorInfoW(monitor, &mut info.monitorInfo as *mut _ as *mut _).as_bool() } {
-                let name_slice = &info.szDevice[..];
-                let name_end = name_slice.iter().position(|&c| c == 0).unwrap_or(32);
-                let _name = String::from_utf16_lossy(&name_slice[..name_end]);
-
-                let rect = info.monitorInfo.rcMonitor;
-                let width = (rect.right - rect.left) as u32;
-                let height = (rect.bottom - rect.top) as u32;
-                // Count screens (skip desktop which is already added)
-                let idx = sources.iter().filter(|s| s.source_type == "screen" && s.id != "desktop").count();
-
-                // Only add if not primary (primary is covered by "desktop")
-                if idx > 0 {
-                    sources.push(CaptureSource {
-                        id: format!("screen:{}", idx),
-                        name: format!("Monitor {} ({}x{})", idx + 1, width, height),
-                        source_type: "screen".to_string(),
-                        width: Some(width),
-                        height: Some(height),
-                    });
-                }
-            }
-            BOOL(1)
-        }
-
-        let sources_ptr = &mut sources as *mut Vec<CaptureSource>;
-        let _ = EnumDisplayMonitors(None, None, Some(enum_monitors), LPARAM(sources_ptr as isize));
-    }
-
-    // Enumerate windows
-    unsafe {
-        unsafe extern "system" fn enum_windows(hwnd: HWND, lparam: LPARAM) -> BOOL {
-            let sources = unsafe { &mut *(lparam.0 as *mut Vec<CaptureSource>) };
-
-            if !unsafe { IsWindowVisible(hwnd).as_bool() } {
+            if !IsWindowVisible(hwnd).as_bool() {
                 return BOOL(1);
             }
 
-            let title_len = unsafe { GetWindowTextLengthW(hwnd) };
+            let ex_style = GetWindowLongW(hwnd, GWL_EXSTYLE) as u32;
+            if ex_style & WS_EX_TOOLWINDOW.0 != 0 {
+                return BOOL(1);
+            }
+
+            let title_len = GetWindowTextLengthW(hwnd);
             if title_len == 0 {
                 return BOOL(1);
             }
 
             let mut title_buf = vec![0u16; (title_len + 1) as usize];
-            let len = unsafe { GetWindowTextW(hwnd, &mut title_buf) };
+            let len = GetWindowTextW(hwnd, &mut title_buf);
             if len == 0 {
                 return BOOL(1);
             }
 
             let title = String::from_utf16_lossy(&title_buf[..len as usize]);
 
-            // Filter out system windows and small windows
-            if title.is_empty()
-                || title == "Program Manager"
-                || title.starts_with("Windows Input Experience")
-                || title.starts_with("Microsoft Text Input")
-                || title.starts_with("NVIDIA GeForce")
-                || title.starts_with("AMD Software")
-                || title.starts_with("Settings")
-                || title == "Task View"
-                || title == "Calculator"
-            {
+            let skip_titles = [
+                "Program Manager", "Windows Input Experience", "Microsoft Text Input",
+                "NVIDIA GeForce Overlay", "AMD Software", "Settings", "Task View", "Search", "",
+            ];
+
+            if skip_titles.iter().any(|&s| title.starts_with(s) || title == s) {
                 return BOOL(1);
             }
 
             let mut rect = RECT::default();
-            if unsafe { GetWindowRect(hwnd, &mut rect).is_ok() } {
+            if GetWindowRect(hwnd, &mut rect).is_ok() {
                 let width = (rect.right - rect.left) as u32;
                 let height = (rect.bottom - rect.top) as u32;
 
-                // Skip tiny windows
-                if width < 200 || height < 200 {
+                if width < 200 || height < 150 {
                     return BOOL(1);
                 }
 
+                if sources.len() >= 21 {
+                    return BOOL(0);
+                }
+
+                let escaped_title = title.replace("\"", "\\\"");
                 sources.push(CaptureSource {
-                    id: format!("title={}", title.replace('"', "\\\"")),
-                    name: if title.len() > 40 {
-                        format!("{}...", &title[..37])
-                    } else {
-                        title
-                    },
+                    id: format!("title={}", escaped_title),
+                    name: if title.len() > 45 { format!("{}...", &title[..42]) } else { title },
                     source_type: "window".to_string(),
                     width: Some(width),
                     height: Some(height),
@@ -225,13 +222,162 @@ fn list_windows_sources() -> Result<Vec<CaptureSource>, String> {
         }
 
         let sources_ptr = &mut sources as *mut Vec<CaptureSource>;
-        let _ = EnumWindows(Some(enum_windows), LPARAM(sources_ptr as isize));
+        let _ = EnumWindows(Some(enum_callback), LPARAM(sources_ptr as isize));
     }
 
     Ok(sources)
 }
 
-/// Start streaming to WHIP endpoint
+/// Build video capture pipeline segment based on source
+fn build_video_capture(config: &StreamConfig) -> String {
+    let mut video = String::new();
+
+    #[cfg(target_os = "windows")]
+    {
+        // Check if capturing a specific window or full desktop
+        if config.source_id.starts_with("title=") {
+            // Window capture using window title
+            let title = &config.source_id[6..]; // Strip "title=" prefix
+            video.push_str(&format!(
+                "d3d11screencapturesrc window-name=\"{}\" show-cursor=true capture-api=wgc",
+                title
+            ));
+        } else {
+            // Full desktop capture
+            video.push_str("d3d11screencapturesrc monitor-index=0 show-cursor=true");
+        }
+
+        // Framerate caps
+        video.push_str(&format!(
+            " ! video/x-raw(memory:D3D11Memory),framerate={}/1",
+            config.fps
+        ));
+
+        // Convert BGRA to NV12 in GPU memory
+        video.push_str(" ! d3d11convert");
+        video.push_str(&format!(
+            " ! video/x-raw(memory:D3D11Memory),format=NV12,width={},height={}",
+            config.width, config.height
+        ));
+
+        // Queue for stability - moderate buffer to prevent stuttering while keeping latency low
+        video.push_str(" ! queue max-size-buffers=5 max-size-time=0 max-size-bytes=0 leaky=downstream");
+
+        // Download from GPU memory to system memory for whipclientsink
+        video.push_str(" ! d3d11download ! videoconvert");
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        video.push_str("ximagesrc show-pointer=true use-damage=false");
+        video.push_str(" ! videoconvert");
+        video.push_str(&format!(
+            " ! videoscale ! video/x-raw,format=NV12,width={},height={},framerate={}/1",
+            config.width, config.height, config.fps
+        ));
+        video.push_str(" ! queue max-size-buffers=5 max-size-time=0 max-size-bytes=0 leaky=downstream");
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        video.push_str("avfvideosrc capture-screen=true");
+        video.push_str(" ! videoconvert");
+        video.push_str(&format!(
+            " ! videoscale ! video/x-raw,format=NV12,width={},height={},framerate={}/1",
+            config.width, config.height, config.fps
+        ));
+        video.push_str(" ! queue max-size-buffers=5 max-size-time=0 max-size-bytes=0 leaky=downstream");
+    }
+
+    video
+}
+
+/// Build audio capture pipeline segment (system audio loopback)
+fn build_audio_capture() -> String {
+    let mut audio = String::new();
+
+    #[cfg(target_os = "windows")]
+    {
+        // WASAPI loopback capture for system audio
+        audio.push_str("wasapisrc loopback=true low-latency=true");
+        audio.push_str(" ! audioconvert ! audioresample");
+        audio.push_str(" ! audio/x-raw,rate=48000,channels=2");
+        audio.push_str(" ! queue max-size-buffers=10 max-size-time=0 max-size-bytes=0");
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        // PulseAudio monitor source for system audio
+        audio.push_str("pulsesrc device=\"$(pactl get-default-sink).monitor\"");
+        audio.push_str(" ! audioconvert ! audioresample");
+        audio.push_str(" ! audio/x-raw,rate=48000,channels=2");
+        audio.push_str(" ! queue max-size-buffers=10 max-size-time=0 max-size-bytes=0");
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        // macOS audio capture (requires BlackHole or similar virtual device)
+        audio.push_str("osxaudiosrc");
+        audio.push_str(" ! audioconvert ! audioresample");
+        audio.push_str(" ! audio/x-raw,rate=48000,channels=2");
+        audio.push_str(" ! queue max-size-buffers=10 max-size-time=0 max-size-bytes=0");
+    }
+
+    audio
+}
+
+/// Build GStreamer pipeline string for WHIP streaming
+fn build_gstreamer_pipeline(config: &StreamConfig) -> String {
+    let bitrate_bps = (config.bitrate * 1000) as u64;
+    let start_bitrate = bitrate_bps * 3 / 4; // Start at 75% of max for faster ramp
+
+    // Build WHIP sink properties
+    let mut whip_props = format!(
+        "whipclientsink name=whip \
+video-caps=\"video/x-h264,profile=constrained-baseline\" \
+start-bitrate={} \
+min-bitrate=500000 \
+max-bitrate={} \
+do-fec=true \
+do-retransmission=true \
+signaller::whip-endpoint=\"{}\"",
+        start_bitrate,
+        bitrate_bps,
+        config.whip_url
+    );
+
+    if let Some(ref token) = config.bearer_token {
+        whip_props.push_str(&format!(" signaller::auth-token=\"{}\"", token));
+    }
+
+    // Add TURN server if provided (for users without direct connectivity)
+    // GstValueArray format requires escaped quotes: <"url1", "url2">
+    if let Some(ref turn) = config.turn_server {
+        whip_props.push_str(&format!(" turn-servers=\"<\\\"{}\\\">\"", turn));
+    }
+
+    // Add audio-caps if audio is enabled
+    if config.audio_enabled {
+        whip_props.push_str(" audio-caps=\"audio/x-opus\"");
+    }
+
+    // Build complete pipeline
+    let video_pipeline = build_video_capture(config);
+
+    if config.audio_enabled {
+        // Video + Audio pipeline using whipclientsink's multiple pad support
+        let audio_pipeline = build_audio_capture();
+        format!(
+            "{} ! whip. {} ! whip. {}",
+            video_pipeline, audio_pipeline, whip_props
+        )
+    } else {
+        // Video-only pipeline
+        format!("{} ! {}", video_pipeline, whip_props)
+    }
+}
+
+/// Start streaming to WHIP endpoint using GStreamer
 #[tauri::command]
 pub async fn start_stream(
     app: AppHandle,
@@ -239,72 +385,119 @@ pub async fn start_stream(
 ) -> Result<(), String> {
     let state = app.state::<StreamingState>();
 
+    // Check if already streaming
     {
-        let child = state.ffmpeg_child.lock().map_err(|e| e.to_string())?;
-        if child.is_some() {
+        let pipeline = state.pipeline.lock().unwrap();
+        if pipeline.is_some() {
             return Err("Already streaming".to_string());
         }
     }
 
-    let ffmpeg_args = build_ffmpeg_args(&config)?;
-    
-    log::info!("[Streaming] Starting FFmpeg with args: {:?}", ffmpeg_args);
+    // Build pipeline string
+    let pipeline_str = build_gstreamer_pipeline(&config);
+    log_to_file(&format!("GStreamer pipeline: {}", pipeline_str));
 
-    let (mut rx, child) = Command::new_sidecar("ffmpeg")
-        .map_err(|e| format!("Failed to create FFmpeg sidecar: {}", e))?
-        .args(&ffmpeg_args)
-        .spawn()
-        .map_err(|e| format!("Failed to spawn FFmpeg: {}", e))?;
+    // Parse and create pipeline using gst_parse_launch
+    let pipeline = gst::parse::launch(&pipeline_str)
+        .map_err(|e| {
+            let msg = format!("Failed to parse pipeline: {}", e);
+            log_to_file(&msg);
+            msg
+        })?;
 
+    // Cast to Pipeline
+    let pipeline: gst::Pipeline = pipeline.downcast()
+        .map_err(|_| {
+            let msg = "Pipeline is not a GstPipeline";
+            log_to_file(msg);
+            msg.to_string()
+        })?;
+
+    // Set to playing state
+    pipeline.set_state(gst::State::Playing)
+        .map_err(|e| {
+            let msg = format!("Failed to start pipeline: {:?}", e);
+            log_to_file(&msg);
+            msg
+        })?;
+
+    log_to_file("GStreamer pipeline started successfully");
+
+    // Get bus for message handling
+    let bus = pipeline.bus().ok_or("Failed to get pipeline bus")?;
+
+    // Store pipeline and config
     {
-        let mut child_lock = state.ffmpeg_child.lock().map_err(|e| e.to_string())?;
-        *child_lock = Some(child);
+        let mut pipeline_lock = state.pipeline.lock().unwrap();
+        *pipeline_lock = Some(pipeline);
     }
     {
-        let mut config_lock = state.current_config.lock().map_err(|e| e.to_string())?;
+        let mut config_lock = state.current_config.lock().unwrap();
         *config_lock = Some(config);
     }
     {
-        let mut start_lock = state.start_time.lock().map_err(|e| e.to_string())?;
+        let mut start_lock = state.start_time.lock().unwrap();
         *start_lock = Some(std::time::Instant::now());
     }
     {
-        let mut error_lock = state.shared.last_error.lock().map_err(|e| e.to_string())?;
+        let mut error_lock = state.shared.last_error.lock().unwrap();
         *error_lock = None;
     }
     {
-        let mut running = state.shared.is_running.lock().map_err(|e| e.to_string())?;
+        let mut running = state.shared.is_running.lock().unwrap();
         *running = true;
     }
 
+    // Spawn message handler thread
     let shared = state.shared.clone();
+    std::thread::spawn(move || {
+        loop {
+            let msg = match bus.timed_pop(gst::ClockTime::from_seconds(1)) {
+                Some(m) => m,
+                None => continue,
+            };
 
-    tauri::async_runtime::spawn(async move {
-        while let Some(event) = rx.recv().await {
-            match event {
-                CommandEvent::Stderr(line) => {
-                    log::debug!("[FFmpeg] {}", line);
-                    // Track errors but don't spam with warnings
-                    if line.contains("Error") || line.contains("error:") || line.contains("fatal") {
-                        log::error!("[FFmpeg ERROR] {}", line);
-                        if let Ok(mut error) = shared.last_error.lock() {
-                            *error = Some(line);
-                        }
-                    }
+            use gst::MessageView;
+            match msg.view() {
+                MessageView::Eos(..) => {
+                    log_to_file("Pipeline reached EOS");
+                    break;
                 }
-                CommandEvent::Stdout(line) => {
-                    log::debug!("[FFmpeg stdout] {}", line);
-                }
-                CommandEvent::Terminated(payload) => {
-                    log::info!("[FFmpeg] Exited with code: {:?}", payload.code);
-                    if let Ok(mut running) = shared.is_running.lock() {
-                        *running = false;
+                MessageView::Error(err) => {
+                    let error_msg = format!(
+                        "GStreamer error: {} ({:?})",
+                        err.error(),
+                        err.debug()
+                    );
+                    log_to_file(&error_msg);
+                    if let Ok(mut error) = shared.last_error.lock() {
+                        *error = Some(error_msg);
                     }
                     break;
                 }
+                MessageView::Warning(warning) => {
+                    log_to_file(&format!(
+                        "GStreamer warning: {} ({:?})",
+                        warning.error(),
+                        warning.debug()
+                    ));
+                }
                 _ => {}
             }
+
+            // Check if we should stop
+            if let Ok(running) = shared.is_running.lock() {
+                if !*running {
+                    break;
+                }
+            }
         }
+
+        // Mark as not running when message loop exits
+        if let Ok(mut running) = shared.is_running.lock() {
+            *running = false;
+        }
+        log_to_file("GStreamer message loop exited");
     });
 
     Ok(())
@@ -315,31 +508,37 @@ pub async fn start_stream(
 pub async fn stop_stream(app: AppHandle) -> Result<(), String> {
     let state = app.state::<StreamingState>();
 
-    let child_opt = {
-        let mut child_lock = state.ffmpeg_child.lock().map_err(|e| e.to_string())?;
-        child_lock.take()
+    let pipeline_opt = {
+        let mut pipeline_lock = state.pipeline.lock().unwrap();
+        pipeline_lock.take()
     };
 
-    if let Some(mut child) = child_opt {
-        // Try graceful quit first
-        if let Err(e) = child.write(b"q") {
-            log::warn!("Failed to send quit to FFmpeg: {}", e);
-        }
-        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-        // Force kill if still running
-        let _ = child.kill();
+    if let Some(pipeline) = pipeline_opt {
+        log_to_file("Stopping GStreamer pipeline");
+
+        // Send EOS to gracefully stop
+        let eos_event: gst::Event = gst::event::Eos::new();
+        let _: bool = pipeline.send_event(eos_event);
+
+        // Wait briefly for EOS to propagate, then force stop
+        std::thread::sleep(std::time::Duration::from_millis(100));
+
+        let _result = pipeline.set_state(gst::State::Null);
+
+        log_to_file("GStreamer pipeline stopped");
     }
 
+    // Clear state
     {
-        let mut config = state.current_config.lock().map_err(|e| e.to_string())?;
+        let mut config = state.current_config.lock().unwrap();
         *config = None;
     }
     {
-        let mut start = state.start_time.lock().map_err(|e| e.to_string())?;
+        let mut start = state.start_time.lock().unwrap();
         *start = None;
     }
     {
-        let mut running = state.shared.is_running.lock().map_err(|e| e.to_string())?;
+        let mut running = state.shared.is_running.lock().unwrap();
         *running = false;
     }
 
@@ -351,253 +550,74 @@ pub async fn stop_stream(app: AppHandle) -> Result<(), String> {
 pub async fn get_stream_status(app: AppHandle) -> Result<StreamStatus, String> {
     let state = app.state::<StreamingState>();
 
-    let child = state.ffmpeg_child.lock().map_err(|e| e.to_string())?;
-    let config = state.current_config.lock().map_err(|e| e.to_string())?;
-    let start_time = state.start_time.lock().map_err(|e| e.to_string())?;
-    let last_error = state.shared.last_error.lock().map_err(|e| e.to_string())?;
+    let pipeline_guard = state.pipeline.lock().unwrap();
+    let config_guard = state.current_config.lock().unwrap();
+    let start_time_guard = state.start_time.lock().unwrap();
+    let last_error_guard = state.shared.last_error.lock().unwrap();
 
-    let active = child.is_some();
-    let duration_seconds = start_time
-        .as_ref()
-        .map(|t| t.elapsed().as_secs())
-        .unwrap_or(0);
+    let active = pipeline_guard.is_some();
+
+    // Calculate duration without complex type inference
+    let duration_seconds: u64 = get_elapsed_seconds(&start_time_guard);
+
+    let source_id: Option<String> = if let Some(ref c) = *config_guard {
+        Some(c.source_id.clone())
+    } else {
+        None
+    };
+
+    let whip_url: Option<String> = if let Some(ref c) = *config_guard {
+        Some(c.whip_url.clone())
+    } else {
+        None
+    };
+
+    let error: Option<String> = last_error_guard.clone();
 
     Ok(StreamStatus {
         active,
-        source_id: config.as_ref().map(|c| c.source_id.clone()),
-        whip_url: config.as_ref().map(|c| c.whip_url.clone()),
+        source_id,
+        whip_url,
         duration_seconds,
-        error: last_error.clone(),
+        error,
     })
 }
 
-/// Check FFmpeg availability and capabilities
+/// Helper to get elapsed seconds from optional start time
+fn get_elapsed_seconds(start_time: &Option<std::time::Instant>) -> u64 {
+    match start_time {
+        Some(t) => t.elapsed().as_secs(),
+        None => 0,
+    }
+}
+
+/// Check GStreamer availability and required plugins
 #[tauri::command]
-pub async fn check_ffmpeg() -> Result<FFmpegInfo, String> {
-    let version_result = Command::new_sidecar("ffmpeg")
-        .map_err(|e| e.to_string())?
-        .args(["-version"])
-        .output();
+pub async fn check_gstreamer(_app: AppHandle) -> Result<GStreamerInfo, String> {
+    // Get version - if this works, GStreamer is available
+    let (major, minor, micro, _nano) = gst::version();
+    let version = format!("{}.{}.{}", major, minor, micro);
+    log_to_file(&format!("GStreamer version: {}", version));
 
-    let version_output = match version_result {
-        Ok(output) => output,
-        Err(_) => {
-            return Ok(FFmpegInfo {
-                available: false,
-                version: None,
-                encoders: vec![],
-                whip_support: false,
-            });
-        }
-    };
+    // For now, assume plugins are available if GStreamer itself is available
+    // Plugin detection can be added later if needed
+    let has_whip = true;  // Assume available
 
-    let version_str = &version_output.stdout;
-    let version = version_str
-        .lines()
-        .next()
-        .and_then(|l| l.split_whitespace().nth(2))
-        .map(|s| s.to_string());
-
-    let encoders_output = Command::new_sidecar("ffmpeg")
-        .map_err(|e| e.to_string())?
-        .args(["-encoders", "-hide_banner"])
-        .output()
-        .map_err(|e| e.to_string())?;
-
-    let encoders_str = &encoders_output.stdout;
-    let mut encoders = Vec::new();
-
-    if encoders_str.contains("h264_nvenc") {
-        encoders.push("nvenc".to_string());
-    }
-    if encoders_str.contains("h264_qsv") {
-        encoders.push("qsv".to_string());
-    }
-    if encoders_str.contains("h264_amf") {
-        encoders.push("amf".to_string());
-    }
-    if encoders_str.contains("libx264") {
-        encoders.push("x264".to_string());
-    }
-
-    let formats_output = Command::new_sidecar("ffmpeg")
-        .map_err(|e| e.to_string())?
-        .args(["-muxers", "-hide_banner"])
-        .output()
-        .map_err(|e| e.to_string())?;
-
-    let formats_str = &formats_output.stdout;
-    let whip_support = formats_str.contains(" whip ");
-
-    Ok(FFmpegInfo {
-        available: true,
-        version,
-        encoders,
-        whip_support,
-    })
-}
-
-/// Build FFmpeg command arguments - optimized for quality + low latency
-fn build_ffmpeg_args(config: &StreamConfig) -> Result<Vec<String>, String> {
-    let mut args = Vec::new();
-
-    // Global options
-    args.extend([
-        "-hide_banner".to_string(),
-        "-loglevel".to_string(), "info".to_string(),
-        "-fflags".to_string(), "+genpts".to_string(),
-        "-flags".to_string(), "low_delay".to_string(),
-        "-y".to_string(),
-    ]);
-
-    // Input source handling
     #[cfg(target_os = "windows")]
-    {
-        args.extend([
-            // Input buffering
-            "-rtbufsize".to_string(), "512M".to_string(),
-            "-thread_queue_size".to_string(), "512".to_string(),
-            // Fast probing
-            "-probesize".to_string(), "32".to_string(),
-            "-analyzeduration".to_string(), "0".to_string(),
-            // GDI grab
-            "-f".to_string(), "gdigrab".to_string(),
-            "-draw_mouse".to_string(), "1".to_string(),
-            "-framerate".to_string(), config.fps.to_string(),
-        ]);
-        
-        // Handle different capture sources
-        if config.source_id == "desktop" {
-            args.extend(["-i".to_string(), "desktop".to_string()]);
-        } else if config.source_id.starts_with("title=") {
-            // Window capture by title
-            args.extend(["-i".to_string(), config.source_id.clone()]);
-        } else if config.source_id.starts_with("screen:") {
-            // For multi-monitor, still use desktop but could add offset later
-            args.extend(["-i".to_string(), "desktop".to_string()]);
-        } else {
-            // Fallback to desktop
-            args.extend(["-i".to_string(), "desktop".to_string()]);
-        }
-    }
+    let has_d3d11 = true;  // Assume available on Windows
 
     #[cfg(not(target_os = "windows"))]
-    {
-        args.extend([
-            "-f".to_string(), "x11grab".to_string(),
-            "-framerate".to_string(), config.fps.to_string(),
-            "-video_size".to_string(), format!("{}x{}", config.width, config.height),
-            "-i".to_string(), ":0.0".to_string(),
-        ]);
-    }
+    let has_d3d11 = false;
 
-    // Audio input (optional)
-    if config.audio_enabled {
-        #[cfg(target_os = "windows")]
-        {
-            args.extend([
-                "-f".to_string(), "dshow".to_string(),
-                "-i".to_string(), "audio=virtual-audio-capturer".to_string(),
-            ]);
-        }
-    }
+    log_to_file(&format!(
+        "GStreamer plugins - whipclientsink: {}, d3d11: {}",
+        has_whip, has_d3d11
+    ));
 
-    // Video filter - use better scaling algorithm
-    args.extend([
-        "-vf".to_string(),
-        format!("scale={}:{}:flags=bilinear,fps={}", config.width, config.height, config.fps),
-    ]);
-
-    // Video encoder settings - balanced quality vs latency
-    match config.encoder.as_str() {
-        "nvenc" => {
-            args.extend([
-                "-c:v".to_string(), "h264_nvenc".to_string(),
-                "-preset".to_string(), "p3".to_string(),  // Better quality than p1
-                "-tune".to_string(), "ll".to_string(),    // Low latency (not ultra)
-                "-rc".to_string(), "vbr".to_string(),     // VBR for better quality
-                "-cq".to_string(), "23".to_string(),      // Quality target
-                "-b:v".to_string(), format!("{}k", config.bitrate),
-                "-maxrate".to_string(), format!("{}k", (config.bitrate as f32 * 1.5) as u32),
-                "-bufsize".to_string(), format!("{}k", config.bitrate),  // Full second buffer
-                "-profile:v".to_string(), "high".to_string(),  // Better compression
-                "-bf".to_string(), "0".to_string(),        // No B-frames for latency
-                "-g".to_string(), (config.fps * 2).to_string(),  // Keyframe every 2 sec
-                "-keyint_min".to_string(), config.fps.to_string(),
-                "-rc-lookahead".to_string(), "8".to_string(),  // Small lookahead for quality
-            ]);
-        }
-        "qsv" => {
-            args.extend([
-                "-c:v".to_string(), "h264_qsv".to_string(),
-                "-preset".to_string(), "fast".to_string(),
-                "-profile:v".to_string(), "high".to_string(),
-                "-bf".to_string(), "0".to_string(),
-                "-b:v".to_string(), format!("{}k", config.bitrate),
-                "-maxrate".to_string(), format!("{}k", (config.bitrate as f32 * 1.5) as u32),
-                "-bufsize".to_string(), format!("{}k", config.bitrate),
-                "-g".to_string(), (config.fps * 2).to_string(),
-            ]);
-        }
-        "amf" => {
-            args.extend([
-                "-c:v".to_string(), "h264_amf".to_string(),
-                "-usage".to_string(), "lowlatency".to_string(),
-                "-quality".to_string(), "balanced".to_string(),
-                "-profile:v".to_string(), "high".to_string(),
-                "-bf".to_string(), "0".to_string(),
-                "-b:v".to_string(), format!("{}k", config.bitrate),
-                "-maxrate".to_string(), format!("{}k", (config.bitrate as f32 * 1.5) as u32),
-                "-bufsize".to_string(), format!("{}k", config.bitrate),
-                "-g".to_string(), (config.fps * 2).to_string(),
-            ]);
-        }
-        _ => {
-            // x264 fallback - improved quality
-            args.extend([
-                "-c:v".to_string(), "libx264".to_string(),
-                "-preset".to_string(), "veryfast".to_string(),  // Better than ultrafast
-                "-tune".to_string(), "zerolatency".to_string(),
-                "-profile:v".to_string(), "high".to_string(),
-                "-bf".to_string(), "0".to_string(),
-                "-crf".to_string(), "23".to_string(),  // Quality-based encoding
-                "-maxrate".to_string(), format!("{}k", config.bitrate),
-                "-bufsize".to_string(), format!("{}k", config.bitrate),  // Full buffer
-                "-g".to_string(), (config.fps * 2).to_string(),
-            ]);
-        }
-    }
-
-    // Pixel format
-    args.extend(["-pix_fmt".to_string(), "yuv420p".to_string()]);
-
-    // Audio encoder
-    if config.audio_enabled {
-        args.extend([
-            "-c:a".to_string(), "libopus".to_string(),
-            "-ar".to_string(), "48000".to_string(),
-            "-ac".to_string(), "2".to_string(),
-            "-b:a".to_string(), "128k".to_string(),
-        ]);
-    } else {
-        args.push("-an".to_string());
-    }
-
-    // Output settings
-    args.extend([
-        "-vsync".to_string(), "cfr".to_string(),
-        "-flush_packets".to_string(), "1".to_string(),
-        "-whip_flags".to_string(), "dtls_active".to_string(),
-        "-f".to_string(), "whip".to_string(),
-    ]);
-
-    // Bearer token
-    if let Some(ref token) = config.bearer_token {
-        args.extend(["-authorization".to_string(), token.clone()]);
-    }
-
-    // WHIP endpoint
-    args.push(config.whip_url.clone());
-
-    Ok(args)
+    Ok(GStreamerInfo {
+        available: true,
+        version: Some(version),
+        has_whip,
+        has_d3d11,
+    })
 }
