@@ -86,10 +86,11 @@ function GeneralPage({ room, requestClose, onSave, onDelete }: GeneralPageProps)
     setError(null);
     try {
       await onSave({ displayName, bitrate, userLimit });
+      requestClose();
     } catch (e) {
       setError((e as Error).message);
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const handleDelete = async () => {
@@ -163,24 +164,26 @@ function GeneralPage({ room, requestClose, onSave, onDelete }: GeneralPageProps)
                     title="Bitrate"
                     description="Higher bitrate means better audio quality but uses more bandwidth."
                     after={
-                      <select
+                      <Box
+                        as="select"
                         value={bitrate}
-                        onChange={(e) => setBitrate(parseInt(e.target.value))}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setBitrate(parseInt(e.target.value))}
                         style={{
                           padding: '8px 12px',
-                          borderRadius: '8px',
-                          border: `1px solid ${color.Surface.ContainerLine}`,
-                          backgroundColor: color.Background.Container,
+                          borderRadius: config.radii.R300,
+                          border: 'none',
+                          backgroundColor: color.Surface.Container,
                           color: color.Surface.OnContainer,
                           fontSize: '14px',
                           cursor: 'pointer',
                           minWidth: '120px',
+                          outline: 'none',
                         }}
                       >
                         {BITRATE_OPTIONS.map(opt => (
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
                         ))}
-                      </select>
+                      </Box>
                     }
                   />
                 </SequenceCard>
@@ -194,17 +197,20 @@ function GeneralPage({ room, requestClose, onSave, onDelete }: GeneralPageProps)
                     title="User Limit"
                     description="Maximum number of users that can join (0 = unlimited)."
                     after={
-                      <Box alignItems="Center" gap="200">
+                      <Box alignItems="Center" gap="300">
                         <input
                           type="range"
                           min="0"
                           max="99"
                           value={userLimit}
                           onChange={(e) => setUserLimit(parseInt(e.target.value))}
-                          style={{ width: '100px' }}
+                          style={{
+                            width: '100px',
+                            accentColor: color.Primary.Main,
+                          }}
                         />
                         <Text size="T300" style={{ minWidth: '70px', textAlign: 'right' }}>
-                          {userLimit === 0 ? 'Unlimited' : userLimit}
+                          {userLimit === 0 ? 'Unlimited' : `${userLimit} users`}
                         </Text>
                       </Box>
                     }
