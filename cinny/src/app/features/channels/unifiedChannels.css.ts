@@ -142,14 +142,10 @@ export const DropIndicatorInto = style({
 export const ChannelIcon = style({
   width: '20px',
   height: '20px',
-  color: color.Surface.OnContainer,
-  opacity: 0.85,
   flexShrink: 0,
 });
 
-export const ChannelIconVoice = style({
-  opacity: 1,
-});
+export const ChannelIconVoice = style({});
 
 export const ChannelIconVoiceConnected = style({
   color: color.Success.Main,
