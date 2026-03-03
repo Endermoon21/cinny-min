@@ -4,7 +4,7 @@ import classNames from 'classnames';
 import { useNavigate } from 'react-router-dom';
 import type { Room } from 'matrix-js-sdk';
 import { UnifiedChannel, VoiceRoom } from './types';
-import { useDraggableChannel, useDropTarget, ChannelDragData } from './useChannelDnD';
+import { useDraggableChannel, useDropTarget, ChannelDragData, wasDragOperation } from './useChannelDnD';
 import { useLiveKitContext } from '../voice/LiveKitContext';
 import { useCallDuration } from '../voice/useCallDuration';
 import * as css from './unifiedChannels.css';
@@ -107,6 +107,11 @@ export function DraggableChannel({
   const displayParticipants = participants.filter(p => !p.identity.endsWith('-stream'));
 
   const handleClick: MouseEventHandler = useCallback((e) => {
+    // Don't handle click if we just finished dragging
+    if (wasDragOperation()) {
+      e.preventDefault();
+      return;
+    }
     if (disabled) return;
 
     if (isVoice) {

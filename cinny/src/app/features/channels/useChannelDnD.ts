@@ -1,4 +1,4 @@
-import { RefObject, useCallback, useEffect, useState } from 'react';
+import { RefObject, useCallback, useEffect, useState, useRef } from 'react';
 import {
   draggable,
   dropTargetForElements,
@@ -16,6 +16,13 @@ import { DragItem, ChannelType } from './types';
 export type ChannelDragData = DragItem;
 
 export type InstructionType = Instruction['type'];
+
+// Track if a drag just occurred globally to prevent click handlers
+let dragJustOccurred = false;
+
+export function wasDragOperation(): boolean {
+  return dragJustOccurred;
+}
 
 // Hook to make an element draggable
 export function useDraggableChannel(
@@ -37,12 +44,17 @@ export function useDraggableChannel(
       dragHandle,
       getInitialData: () => ({ item }),
       onDragStart: () => {
+        dragJustOccurred = true;
         setDragging(true);
         onDragging(item);
       },
       onDrop: () => {
         setDragging(false);
         onDragging(undefined);
+        // Reset flag after a short delay to allow click to be suppressed
+        setTimeout(() => {
+          dragJustOccurred = false;
+        }, 100);
       },
     });
   }, [targetRef, dragHandleRef, item, onDragging]);

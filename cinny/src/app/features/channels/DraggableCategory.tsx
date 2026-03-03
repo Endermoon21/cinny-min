@@ -1,7 +1,7 @@
-import React, { useRef, useCallback, ReactNode } from 'react';
+import React, { useRef, useCallback, ReactNode, MouseEventHandler } from 'react';
 import { Box, Icon, Icons } from 'folds';
 import classNames from 'classnames';
-import { useDraggableChannel, useDropTarget, useDropTargetInstruction, ChannelDragData } from './useChannelDnD';
+import { useDraggableChannel, useDropTarget, useDropTargetInstruction, ChannelDragData, wasDragOperation } from './useChannelDnD';
 import * as css from './unifiedChannels.css';
 
 interface DraggableCategoryProps {
@@ -44,6 +44,15 @@ export function DraggableCategory({
   const orderAbove = useDropTargetInstruction(dragItem, aboveTargetRef, 'reorder-above');
   const orderBelow = useDropTargetInstruction(dragItem, belowTargetRef, 'reorder-below');
 
+  // Handle click - but not if we just finished dragging
+  const handleClick: MouseEventHandler = useCallback((e) => {
+    if (wasDragOperation()) {
+      e.preventDefault();
+      return;
+    }
+    onToggle();
+  }, [onToggle]);
+
   return (
     <Box direction="Column" style={{ position: 'relative' }}>
       {/* Drop target above category */}
@@ -65,7 +74,7 @@ export function DraggableCategory({
           [css.CategoryHeaderDragging]: dragging,
           [css.DropIndicatorInto]: dropType === 'make-child',
         })}
-        onClick={onToggle}
+        onClick={handleClick}
         role="button"
         tabIndex={0}
         aria-expanded={!collapsed}
