@@ -654,3 +654,166 @@ export const StreamLoadingSpinner = style({
     "to": { transform: "rotate(360deg)" },
   },
 });
+
+// Device selector accordion styles
+export const DeviceMenuWrapper = style({
+  position: "absolute",
+  bottom: "70px",
+  left: "50%",
+  transform: "translateX(-50%)",
+  backgroundColor: "#111214",
+  borderRadius: "8px",
+  minWidth: "280px",
+  maxWidth: "350px",
+  boxShadow: "0 8px 24px rgba(0, 0, 0, 0.6)",
+  zIndex: 1000,
+  border: "1px solid rgba(255, 255, 255, 0.1)",
+  overflow: "hidden",
+  animation: `${fadeSlideIn} 0.15s ${discordEaseOut}`,
+});
+
+export const DeviceSection = style({
+  borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
+  ":last-child": {
+    borderBottom: "none",
+  },
+});
+
+export const DeviceSectionHeader = style({
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  padding: "10px 12px",
+  cursor: "pointer",
+  transition: "background-color 0.15s ease",
+  ":hover": {
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+  },
+});
+
+export const DeviceSectionLabel = style({
+  fontSize: "11px",
+  fontWeight: 700,
+  color: "#949ba4",
+  textTransform: "uppercase",
+  letterSpacing: "0.02em",
+});
+
+export const DeviceSectionCurrent = style({
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  flex: 1,
+  marginLeft: "12px",
+  overflow: "hidden",
+});
+
+export const DeviceCurrentName = style({
+  fontSize: "13px",
+  color: "#dbdee1",
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  flex: 1,
+});
+
+export const DeviceChevron = style({
+  color: "#949ba4",
+  transition: "transform 0.15s ease",
+  flexShrink: 0,
+});
+
+export const DeviceChevronOpen = style({
+  transform: "rotate(180deg)",
+});
+
+export const DeviceList = style({
+  backgroundColor: "rgba(0, 0, 0, 0.2)",
+  maxHeight: "0",
+  overflow: "hidden",
+  transition: "max-height 0.2s ease",
+});
+
+export const DeviceListOpen = style({
+  maxHeight: "200px",
+  overflowY: "auto",
+});
+
+export const DeviceOption = style({
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  padding: "8px 12px 8px 24px",
+  cursor: "pointer",
+  fontSize: "13px",
+  color: "#b5bac1",
+  transition: "background-color 0.1s ease, color 0.1s ease",
+  ":hover": {
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    color: "#f2f3f5",
+  },
+});
+
+export const DeviceOptionActive = style({
+  color: "#23a55a",
+  ":hover": {
+    color: "#23a55a",
+  },
+});
+
+export const DeviceOptionCheck = style({
+  width: "16px",
+  flexShrink: 0,
+});
+
+export const DeviceOptionLabel = style({
+  flex: 1,
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+});
+
+// Control button with dropdown arrow
+export const ControlBtnWithDropdown = style({
+  display: "flex",
+  alignItems: "center",
+  position: "relative",
+});
+
+export const ControlBtnMain = style({
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: "52px",
+  height: "52px",
+  borderRadius: "50% 0 0 50%",
+  border: "none",
+  backgroundColor: "#2b2d31",
+  color: "#b5bac1",
+  cursor: "pointer",
+  transition: `background-color 0.15s ${discordEase}, color 0.15s ${discordEase}, transform 0.1s ${discordEase}`,
+  ":hover": { backgroundColor: "#36383f", color: "#dbdee1" },
+  ":active": { transform: "scale(0.95)" },
+});
+
+export const ControlBtnMainActive = style({
+  backgroundColor: "#2b2d31",
+  color: "#f23f43",
+  ":hover": { backgroundColor: "#36383f", color: "#f23f43" },
+});
+
+export const ControlBtnDropdownArrow = style({
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: "20px",
+  height: "52px",
+  borderRadius: "0 50% 50% 0",
+  border: "none",
+  borderLeft: "1px solid rgba(255, 255, 255, 0.1)",
+  backgroundColor: "#2b2d31",
+  color: "#b5bac1",
+  cursor: "pointer",
+  transition: `background-color 0.15s ${discordEase}, color 0.15s ${discordEase}`,
+  ":hover": { backgroundColor: "#36383f", color: "#dbdee1" },
+});

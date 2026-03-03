@@ -1,7 +1,9 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import classNames from "classnames";
+import FocusTrap from "focus-trap-react";
 import { useLiveKitContext, VoiceParticipant } from "./LiveKitContext";
 import { useMatrixClient } from "../../hooks/useMatrixClient";
+import { useDeviceSelection } from "./useDeviceSelection";
 import { StreamingModal } from "./StreamingModal";
 import { getNativeStreamStatus, isNativeStreamingAvailable } from "./nativeStreaming";
 import * as css from "./voiceRoom.css";
@@ -53,29 +55,6 @@ const MicOffSmallIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="m2 2 20 20" />
     <path d="M9 9v3a3 3 0 0 0 5.12 2.12" />
-  </svg>
-);
-
-const HeadphonesIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3" />
-  </svg>
-);
-
-const HeadphonesOffIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 14h-1.343" />
-    <path d="M9.128 3.47A9 9 0 0 1 21 12v3.343" />
-    <path d="m2 2 20 20" />
-    <path d="M20.414 20.414A2 2 0 0 1 19 21h-1a2 2 0 0 1-2-2v-3" />
-    <path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 2.636-6.364" />
-  </svg>
-);
-
-const DeafenedSmallIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="m2 2 20 20" />
-    <path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 2.636-6.364" />
   </svg>
 );
 
@@ -134,6 +113,18 @@ const PipIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="3" width="20" height="14" rx="2"/>
     <rect x="10" y="9" width="10" height="7" rx="1"/>
+  </svg>
+);
+
+const ChevronDownIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m6 9 6 6 6-6" />
+  </svg>
+);
+
+const CheckIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17Z" />
   </svg>
 );
 
@@ -243,6 +234,145 @@ function ParticipantControl({ participant, avatarUrl, displayName, onClose }: Pa
   );
 }
 
+// Device Accordion Component
+interface DeviceAccordionProps {
+  inputDevices: { deviceId: string; label: string }[];
+  outputDevices: { deviceId: string; label: string }[];
+  activeInputId: string | null;
+  activeOutputId: string | null;
+  onSelectInput: (deviceId: string) => void;
+  onSelectOutput: (deviceId: string) => void;
+  onClose: () => void;
+}
+
+function DeviceAccordion({
+  inputDevices,
+  outputDevices,
+  activeInputId,
+  activeOutputId,
+  onSelectInput,
+  onSelectOutput,
+  onClose,
+}: DeviceAccordionProps) {
+  const [inputExpanded, setInputExpanded] = useState(false);
+  const [outputExpanded, setOutputExpanded] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const activeInputLabel = inputDevices.find(d => d.deviceId === activeInputId)?.label || "Default";
+  const activeOutputLabel = outputDevices.find(d => d.deviceId === activeOutputId)?.label || "Default";
+
+  const handleSelectInput = (deviceId: string) => {
+    onSelectInput(deviceId);
+    setInputExpanded(false);
+  };
+
+  const handleSelectOutput = (deviceId: string) => {
+    onSelectOutput(deviceId);
+    setOutputExpanded(false);
+  };
+
+  return (
+    <FocusTrap
+      focusTrapOptions={{
+        initialFocus: false,
+        clickOutsideDeactivates: true,
+        onDeactivate: onClose,
+        escapeDeactivates: true,
+      }}
+    >
+      <div ref={menuRef} className={css.DeviceMenuWrapper}>
+        {/* Input Devices Section */}
+        <div className={css.DeviceSection}>
+          <div
+            className={css.DeviceSectionHeader}
+            onClick={() => setInputExpanded(!inputExpanded)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === "Enter" && setInputExpanded(!inputExpanded)}
+          >
+            <span className={css.DeviceSectionLabel}>Input</span>
+            <div className={css.DeviceSectionCurrent}>
+              <span className={css.DeviceCurrentName}>{activeInputLabel}</span>
+              <span className={classNames(css.DeviceChevron, { [css.DeviceChevronOpen]: inputExpanded })}>
+                <ChevronDownIcon />
+              </span>
+            </div>
+          </div>
+          <div className={classNames(css.DeviceList, { [css.DeviceListOpen]: inputExpanded })}>
+            {inputDevices.length === 0 ? (
+              <div className={css.DeviceOption}>
+                <span className={css.DeviceOptionLabel}>No devices found</span>
+              </div>
+            ) : (
+              inputDevices.map((device) => (
+                <div
+                  key={device.deviceId}
+                  className={classNames(css.DeviceOption, {
+                    [css.DeviceOptionActive]: device.deviceId === activeInputId,
+                  })}
+                  onClick={() => handleSelectInput(device.deviceId)}
+                  role="menuitem"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === "Enter" && handleSelectInput(device.deviceId)}
+                >
+                  <span className={css.DeviceOptionCheck}>
+                    {device.deviceId === activeInputId && <CheckIcon />}
+                  </span>
+                  <span className={css.DeviceOptionLabel}>{device.label}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Output Devices Section */}
+        <div className={css.DeviceSection}>
+          <div
+            className={css.DeviceSectionHeader}
+            onClick={() => setOutputExpanded(!outputExpanded)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === "Enter" && setOutputExpanded(!outputExpanded)}
+          >
+            <span className={css.DeviceSectionLabel}>Output</span>
+            <div className={css.DeviceSectionCurrent}>
+              <span className={css.DeviceCurrentName}>{activeOutputLabel}</span>
+              <span className={classNames(css.DeviceChevron, { [css.DeviceChevronOpen]: outputExpanded })}>
+                <ChevronDownIcon />
+              </span>
+            </div>
+          </div>
+          <div className={classNames(css.DeviceList, { [css.DeviceListOpen]: outputExpanded })}>
+            {outputDevices.length === 0 ? (
+              <div className={css.DeviceOption}>
+                <span className={css.DeviceOptionLabel}>No devices found</span>
+              </div>
+            ) : (
+              outputDevices.map((device) => (
+                <div
+                  key={device.deviceId}
+                  className={classNames(css.DeviceOption, {
+                    [css.DeviceOptionActive]: device.deviceId === activeOutputId,
+                  })}
+                  onClick={() => handleSelectOutput(device.deviceId)}
+                  role="menuitem"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === "Enter" && handleSelectOutput(device.deviceId)}
+                >
+                  <span className={css.DeviceOptionCheck}>
+                    {device.deviceId === activeOutputId && <CheckIcon />}
+                  </span>
+                  <span className={css.DeviceOptionLabel}>{device.label}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </FocusTrap>
+  );
+}
+
 interface ParticipantTileProps {
   participant: VoiceParticipant;
   avatarUrl?: string;
@@ -288,10 +418,6 @@ function ParticipantTile({ participant, avatarUrl, displayName }: ParticipantTil
             <div className={classNames(css.TileStatusOverlay, css.TileStatusMuted)}>
               <VolumeMuteIcon />
             </div>
-          ) : participant.isDeafened ? (
-            <div className={classNames(css.TileStatusOverlay, css.TileStatusDeafened)}>
-              <DeafenedSmallIcon />
-            </div>
           ) : participant.isMuted && (
             <div className={classNames(css.TileStatusOverlay, css.TileStatusMuted)}>
               <MicOffSmallIcon />
@@ -319,14 +445,18 @@ export function VoiceRoom() {
   const mx = useMatrixClient();
   const {
     currentRoom, participants, isMuted, screenShareInfo, connectionQuality,
-    disconnect, toggleMute, getScreenShareElement
+    disconnect, toggleMute, getScreenShareElement, room
   } = useLiveKitContext();
 
+  const deviceSelection = useDeviceSelection(room);
+
   const videoContainerRef = useRef<HTMLDivElement>(null);
+  const muteButtonRef = useRef<HTMLDivElement>(null);
   const [profileCache, setProfileCache] = useState<Record<string, { avatarUrl?: string; displayName: string }>>({});
   const [showStreamOverlay, setShowStreamOverlay] = useState(false);
   const [showStreamModal, setShowStreamModal] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [showDeviceMenu, setShowDeviceMenu] = useState(false);
 
   // Check streaming status periodically
   useEffect(() => {
@@ -517,9 +647,37 @@ export function VoiceRoom() {
           <button className={css.ControlBtn} disabled title="Video (Coming Soon)">
             <VideoIcon />
           </button>
-          <button className={classNames(css.ControlBtn, { [css.ControlBtnActive]: isMuted })} onClick={toggleMute} title={isMuted ? "Unmute" : "Mute"}>
-            {isMuted ? <MicOffIcon /> : <MicIcon />}
-          </button>
+
+          {/* Mute button with device selector dropdown */}
+          <div ref={muteButtonRef} className={css.ControlBtnWithDropdown}>
+            <button
+              className={classNames(css.ControlBtnMain, { [css.ControlBtnMainActive]: isMuted })}
+              onClick={toggleMute}
+              title={isMuted ? "Unmute" : "Mute"}
+            >
+              {isMuted ? <MicOffIcon /> : <MicIcon />}
+            </button>
+            <button
+              className={css.ControlBtnDropdownArrow}
+              onClick={() => setShowDeviceMenu(!showDeviceMenu)}
+              title="Select audio devices"
+            >
+              <ChevronDownIcon />
+            </button>
+
+            {showDeviceMenu && (
+              <DeviceAccordion
+                inputDevices={deviceSelection.inputDevices}
+                outputDevices={deviceSelection.outputDevices}
+                activeInputId={deviceSelection.activeInputId}
+                activeOutputId={deviceSelection.activeOutputId}
+                onSelectInput={deviceSelection.switchInput}
+                onSelectOutput={deviceSelection.switchOutput}
+                onClose={() => setShowDeviceMenu(false)}
+              />
+            )}
+          </div>
+
           <button
             className={classNames(css.ControlBtn, { [css.ControlBtnActive]: isStreaming })}
             onClick={() => setShowStreamModal(true)}

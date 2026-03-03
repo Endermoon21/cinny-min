@@ -125,6 +125,7 @@ export default defineConfig({
     sourcemap: true,
     copyPublicDir: false,
     rollupOptions: {
+      external: [/^@tauri-apps\//],
       plugins: [inject({ Buffer: ['buffer', 'Buffer'] })],
     },
   },

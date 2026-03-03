@@ -49,7 +49,7 @@ const MIME_TYPES: Record<string, string> = {
   // Code
   '.py': 'text/x-python', '.java': 'text/x-java-source',
   '.c': 'text/x-c', '.cpp': 'text/x-c++', '.h': 'text/x-c',
-  '.rs': 'text/x-rust', '.go': 'text/x-go', '.ts': 'text/typescript',
+  '.rs': 'text/x-rust', '.go': 'text/x-go',
   '.tsx': 'text/typescript-jsx', '.jsx': 'text/javascript-jsx',
   // Other
   '.exe': 'application/x-msdownload', '.apk': 'application/vnd.android.package-archive',

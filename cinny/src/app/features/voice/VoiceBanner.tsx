@@ -1,21 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
-import classNames from 'classnames';
+import React from 'react';
 import { useLiveKitContext } from './LiveKitContext';
 import { PingVisualizer } from './PingVisualizer';
 import { MediaControlsRow } from './MediaControlsRow';
 import * as css from './voicePanel.css';
-
-// Icons (stroke style)
-const NoiseFilterIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M2 10v4" />
-    <path d="M6 6v12" />
-    <path d="M10 3v18" />
-    <path d="M14 8v8" />
-    <path d="M18 5v14" />
-    <path d="M22 10v4" />
-  </svg>
-);
 
 // Disconnect icon - phone hanging up (no slash)
 const DisconnectIcon = () => (
@@ -25,95 +12,14 @@ const DisconnectIcon = () => (
 );
 
 export function VoiceBanner() {
-  const {
-    currentRoom,
-    disconnect,
-    isNoiseFilterEnabled,
-    isNoiseFilterPending,
-    setNoiseFilterEnabled,
-    isNoiseFilterSupported,
-  } = useLiveKitContext();
-
-  const [showModal, setShowModal] = useState(false);
-  const modalRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const { currentRoom, disconnect } = useLiveKitContext();
 
   const roomDisplayName = currentRoom
     ? currentRoom.charAt(0).toUpperCase() + currentRoom.slice(1)
     : 'Voice Channel';
 
-  const handleToggle = () => {
-    console.log('[VoiceBanner] handleToggle called', {
-      isNoiseFilterPending,
-      isNoiseFilterEnabled,
-      isNoiseFilterSupported,
-    });
-    if (!isNoiseFilterPending) {
-      setNoiseFilterEnabled(!isNoiseFilterEnabled);
-    }
-  };
-
-  // Close modal when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        modalRef.current &&
-        !modalRef.current.contains(event.target as Node) &&
-        buttonRef.current &&
-        !buttonRef.current.contains(event.target as Node)
-      ) {
-        setShowModal(false);
-      }
-    };
-
-    if (showModal) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [showModal]);
-
   return (
-    <div className={css.VoiceBanner} style={{ position: 'relative' }}>
-      {/* Noise Suppression Modal */}
-      {showModal && (
-        <div ref={modalRef} className={css.RNNoiseModal}>
-          <div className={css.RNNoiseModalHeader}>
-            <span className={css.RNNoiseModalIcon}>
-              {isNoiseFilterEnabled ? <NoiseFilterActiveIcon /> : <NoiseFilterIcon />}
-            </span>
-            <span className={css.RNNoiseModalTitle}>Noise Suppression</span>
-          </div>
-          <div className={css.RNNoiseModalContent}>
-            {/* Enable/Disable Toggle */}
-            <div className={css.RNNoiseModalRow}>
-              <div className={css.RNNoiseModalLabel}>
-                <span className={css.RNNoiseModalLabelText}>RNNoise</span>
-                <span className={css.RNNoiseModalLabelDesc}>AI-powered noise removal</span>
-              </div>
-              <button
-                className={classNames(css.ToggleSwitch, {
-                  [css.ToggleSwitchActive]: isNoiseFilterEnabled,
-                })}
-                onClick={handleToggle}
-                disabled={isNoiseFilterPending || !isNoiseFilterSupported}
-                style={{ opacity: (isNoiseFilterPending || !isNoiseFilterSupported) ? 0.5 : 1 }}
-              >
-                <span className={css.ToggleSwitchKnob} />
-              </button>
-            </div>
-
-            {/* Not supported warning */}
-            {!isNoiseFilterSupported && (
-              <div className={css.RNNoiseModalRow}>
-                <span className={css.RNNoiseModalLabelDesc} style={{ color: '#F04747' }}>
-                  Not supported in this browser
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
+    <div className={css.VoiceBanner}>
       {/* Top Section */}
       <div className={css.VoiceBannerTop}>
         <div className={css.VoiceBannerInfo}>
@@ -125,17 +31,6 @@ export function VoiceBanner() {
         </div>
 
         <div className={css.VoiceBannerControls}>
-          <button
-            ref={buttonRef}
-            className={classNames(css.NoiseFilterBtn, {
-              [css.NoiseFilterBtnActive]: isNoiseFilterEnabled,
-            })}
-            onClick={() => setShowModal(!showModal)}
-            title="Noise Suppression Settings"
-          >
-            {isNoiseFilterEnabled ? <NoiseFilterActiveIcon /> : <NoiseFilterIcon />}
-          </button>
-
           <button
             className={css.DisconnectBtn}
             onClick={disconnect}

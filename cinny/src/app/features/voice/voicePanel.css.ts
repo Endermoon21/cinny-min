@@ -329,15 +329,12 @@ export const ControlBtn = style({
   },
 });
 
-// Discord March 2025 style - prominent red glow when muted
 export const ControlBtnActive = style({
   backgroundColor: 'rgba(242, 63, 67, 0.2)',
   color: butter.danger,
-  boxShadow: '0 0 8px rgba(242, 63, 67, 0.4)',
   ':hover': {
     backgroundColor: 'rgba(242, 63, 67, 0.3)',
     color: butter.danger,
-    boxShadow: '0 0 12px rgba(242, 63, 67, 0.5)',
   },
 });
 
