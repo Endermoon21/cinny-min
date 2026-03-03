@@ -311,3 +311,22 @@ export function getBackendDisplayName(backend: StreamBackend): string {
 export function backendSupportsTurn(backend: StreamBackend): boolean {
   return backend === 'gstreamer';
 }
+
+/**
+ * Delete a LiveKit ingress (cleanup when stream ends)
+ */
+export async function deleteIngress(ingressId: string): Promise<void> {
+  const TOKEN_SERVER_URL = 'https://token.endershare.org';
+  try {
+    const response = await fetch(`${TOKEN_SERVER_URL}/ingress/${encodeURIComponent(ingressId)}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      console.error('[Streaming] Failed to delete ingress:', response.status);
+    } else {
+      console.log('[Streaming] Ingress deleted:', ingressId);
+    }
+  } catch (e) {
+    console.error('[Streaming] Error deleting ingress:', e);
+  }
+}

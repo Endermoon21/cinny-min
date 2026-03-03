@@ -140,7 +140,7 @@ interface StreamingModalProps {
 }
 
 export function StreamingModal({ onClose }: StreamingModalProps) {
-  const { isConnected, currentRoom, room, screenShareInfo, getScreenShareElement } = useLiveKitContext();
+  const { isConnected, currentRoom, room, screenShareInfo, getScreenShareElement, setCurrentIngressId } = useLiveKitContext();
 
   // State
   const [gstreamerInfo, setGStreamerInfo] = useState<GStreamerInfo | null>(null);
@@ -328,6 +328,7 @@ export function StreamingModal({ onClose }: StreamingModalProps) {
           throw new Error("Failed to create stream endpoint");
         }
         setWhipIngress(ingress);
+        setCurrentIngressId(ingress.ingressId); // Track for cleanup on disconnect
         setCreatingIngress(false);
       }
 
@@ -370,6 +371,7 @@ export function StreamingModal({ onClose }: StreamingModalProps) {
       if (whipIngress) {
         await deleteWhipIngress(whipIngress.ingressId);
         setWhipIngress(null);
+        setCurrentIngressId(null); // Clear from context
       }
       await stopNativeStream();
       setIsStreaming(false);

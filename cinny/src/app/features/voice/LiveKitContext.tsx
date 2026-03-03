@@ -13,7 +13,7 @@ import {
 } from "livekit-client";
 
 import { useNoiseFilter } from "./useNoiseFilter";
-import { isNativeStreamingAvailable, getNativeStreamStatus, stopNativeStream } from "./nativeStreaming";
+import { isNativeStreamingAvailable, getNativeStreamStatus, stopNativeStream, deleteIngress } from "./nativeStreaming";
 const LIVEKIT_URL = "wss://livekit.endershare.org";
 const TOKEN_SERVER_URL = "https://token.endershare.org";
 const DIAGNOSTICS_URL = "https://token.endershare.org/diagnostics";
@@ -72,6 +72,8 @@ interface LiveKitContextValue {
   setNoiseFilterEnabled: (enabled: boolean) => Promise<void>;
   isNoiseFilterSupported: boolean;
   isNativeStreaming: boolean;
+  currentIngressId: string | null;
+  setCurrentIngressId: (id: string | null) => void;
 }
 
 const LiveKitContext = createContext<LiveKitContextValue | null>(null);
@@ -90,7 +92,12 @@ export function LiveKitProvider({ children }: { children: ReactNode }) {
   const [participantVolumes, setParticipantVolumes] = useState<Record<string, number>>({});
   const [isCameraEnabled, setIsCameraEnabled] = useState(false);
   const [isNativeStreaming, setIsNativeStreaming] = useState(false);
+  const [currentIngressId, setCurrentIngressId] = useState<string | null>(null);
   const roomRef = useRef<Room | null>(null);
+  const ingressIdRef = useRef<string | null>(null);
+
+  // Keep ref in sync with state for use in cleanup handlers
+  useEffect(() => { ingressIdRef.current = currentIngressId; }, [currentIngressId]);
   const nativeStreamingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [microphoneTrack, setMicrophoneTrack] = useState<any>(null);
   const noiseFilter = useNoiseFilter(microphoneTrack);
@@ -162,6 +169,10 @@ export function LiveKitProvider({ children }: { children: ReactNode }) {
   // Stop streaming when app/window is closed
   useEffect(() => {
     const handleBeforeUnload = () => {
+      // Delete ingress to remove stream participant
+      if (ingressIdRef.current) {
+        deleteIngress(ingressIdRef.current).catch(() => {});
+      }
       if (isNativeStreamingAvailable()) {
         // Use sync invoke if available, otherwise fire and forget
         stopNativeStream().catch(() => {});
@@ -360,6 +371,15 @@ export function LiveKitProvider({ children }: { children: ReactNode }) {
 
   const disconnect = useCallback(async () => {
     stopDiagnostics();
+    // Delete ingress first to remove stream participant immediately
+    if (currentIngressId) {
+      try {
+        await deleteIngress(currentIngressId);
+        setCurrentIngressId(null);
+      } catch (e) {
+        console.error("[LiveKit] Error deleting ingress:", e);
+      }
+    }
     // Stop native streaming if active
     if (isNativeStreamingAvailable() && isNativeStreaming) {
       try {
@@ -375,7 +395,7 @@ export function LiveKitProvider({ children }: { children: ReactNode }) {
     cameraVideoRefs.current.forEach((el) => el.remove());
     cameraVideoRefs.current.clear();
     setIsConnected(false); setCurrentRoom(null); setParticipants([]); setIsMuted(true); setIsDeafened(false); setIsCameraEnabled(false); setScreenShareInfo(null); setShowVoiceView(false);
-  }, [stopDiagnostics, isNativeStreaming]);
+  }, [stopDiagnostics, isNativeStreaming, currentIngressId]);
 
   const toggleMute = useCallback(async () => {
     const room = roomRef.current; if (!room) return;
@@ -476,7 +496,10 @@ export function LiveKitProvider({ children }: { children: ReactNode }) {
   useEffect(() => { return () => {
     if (diagnosticsIntervalRef.current) clearInterval(diagnosticsIntervalRef.current);
     if (nativeStreamingIntervalRef.current) clearInterval(nativeStreamingIntervalRef.current);
-    // Stop native streaming on unmount
+    // Delete ingress and stop native streaming on unmount
+    if (ingressIdRef.current) {
+      deleteIngress(ingressIdRef.current).catch(() => {});
+    }
     if (isNativeStreamingAvailable()) {
       stopNativeStream().catch(() => {});
     }
@@ -512,6 +535,8 @@ export function LiveKitProvider({ children }: { children: ReactNode }) {
       setNoiseFilterEnabled: noiseFilter.setNoiseFilterEnabled,
       isNoiseFilterSupported: noiseFilter.isSupported,
       isNativeStreaming,
+      currentIngressId,
+      setCurrentIngressId,
     }}>
       {children}
     </LiveKitContext.Provider>
