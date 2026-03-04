@@ -69,6 +69,7 @@ export const ChannelItem = style({
   cursor: 'grab',
   transition: 'background 0.15s',
   position: 'relative',
+  color: color.Surface.OnContainer, // Required for SVG currentColor inheritance
 
   ':active': {
     cursor: 'grabbing',
