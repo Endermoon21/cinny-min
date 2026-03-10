@@ -48,7 +48,7 @@ import { useRoomName } from '../../../hooks/useRoomMeta';
 import { allRoomsAtom } from '../../../state/room-list/roomList';
 import { PageNav, PageNavContent, PageNavHeader } from '../../../components/page';
 import { usePowerLevels } from '../../../hooks/usePowerLevels';
-import { useSpaceChildren } from '../../../state/hooks/roomList';
+import { useSpaceChildren, useRecursiveChildScopeFactory } from '../../../state/hooks/roomList';
 import { roomToParentsAtom } from '../../../state/room/roomToParents';
 import { markAsRead } from '../../../utils/notifications';
 import { useRoomsUnread } from '../../../state/hooks/unread';
