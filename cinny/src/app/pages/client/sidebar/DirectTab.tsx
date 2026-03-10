@@ -1,5 +1,6 @@
 import React, { MouseEventHandler, forwardRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLiveKitContext } from '../../../features/voice';
 import { Box, Icon, Icons, Menu, MenuItem, PopOut, RectCords, Text, config, toRem } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { useAtomValue } from 'jotai';
@@ -63,6 +64,7 @@ const DirectMenu = forwardRef<HTMLDivElement, DirectMenuProps>(({ requestClose }
 export function DirectTab() {
   const navigate = useNavigate();
   const mx = useMatrixClient();
+  const { setShowVoiceView } = useLiveKitContext();
   const screenSize = useScreenSizeContext();
   const navToActivePath = useAtomValue(useNavToActivePathAtom());
 
@@ -74,6 +76,9 @@ export function DirectTab() {
   const directSelected = useDirectSelected();
 
   const handleDirectClick = () => {
+    // Hide voice view when navigating to direct messages
+    setShowVoiceView(false);
+
     const activePath = navToActivePath.get('direct');
     if (activePath && screenSize !== ScreenSize.Mobile) {
       navigate(joinPathComponent(activePath));

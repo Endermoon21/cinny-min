@@ -347,13 +347,15 @@ export function LiveKitProvider({ children }: { children: ReactNode }) {
       volume: 1
     });
     room.remoteParticipants.forEach((p) => {
+      // WHIP ingress streams have identity ending with -stream and should be treated as screen sharing
+      const isIngressStream = p.identity.endsWith('-stream');
       allParticipants.push({
         identity: p.identity,
         name: p.name || p.identity,
         isSpeaking: p.isSpeaking,
         isMuted: !p.isMicrophoneEnabled,
         isLocal: false,
-        isScreenSharing: p.isScreenShareEnabled,
+        isScreenSharing: p.isScreenShareEnabled || isIngressStream,
         isCameraEnabled: p.isCameraEnabled,
         volume: volumesRef.current[p.identity] ?? 1
       });

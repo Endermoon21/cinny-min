@@ -1,5 +1,6 @@
 import React, { MouseEventHandler, forwardRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLiveKitContext } from '../../../features/voice';
 import { Box, Icon, Icons, Menu, MenuItem, PopOut, RectCords, Text, config, toRem } from 'folds';
 import { useAtomValue } from 'jotai';
 import FocusTrap from 'focus-trap-react';
@@ -64,6 +65,7 @@ const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(({ requestClose }, re
 export function HomeTab() {
   const navigate = useNavigate();
   const mx = useMatrixClient();
+  const { setShowVoiceView } = useLiveKitContext();
   const screenSize = useScreenSizeContext();
   const navToActivePath = useAtomValue(useNavToActivePathAtom());
 
@@ -75,6 +77,9 @@ export function HomeTab() {
   const [menuAnchor, setMenuAnchor] = useState<RectCords>();
 
   const handleHomeClick = () => {
+    // Hide voice view when navigating to home
+    setShowVoiceView(false);
+
     const activePath = navToActivePath.get('home');
     if (activePath && screenSize !== ScreenSize.Mobile) {
       navigate(joinPathComponent(activePath));

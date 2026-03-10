@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, ReactNode, MouseEventHandler, Children, isValidElement, cloneElement } from 'react';
+import React, { useRef, useCallback, ReactNode, MouseEventHandler } from 'react';
 import { Box, Icon, Icons } from 'folds';
 import classNames from 'classnames';
 import { useDraggableChannel, useDropTarget, useDropTargetInstruction, ChannelDragData, wasDragOperation } from './useChannelDnD';
@@ -97,45 +97,16 @@ export function DraggableCategory({
       </div>
 
       {/* Category content (channels) - animated */}
-      {(() => {
-        // Separate selected child from others when collapsed
-        let selectedChild: ReactNode = null;
-        let otherChildren: ReactNode[] = [];
-
-        if (collapsed && selectedChildId) {
-          Children.forEach(children, (child) => {
-            if (isValidElement(child)) {
-              // Check if this child's key matches the selected ID
-              const childKey = child.key?.toString() || '';
-              if (childKey.includes(selectedChildId)) {
-                selectedChild = child;
-              } else {
-                otherChildren.push(child);
-              }
-            } else {
-              otherChildren.push(child);
-            }
-          });
-        }
-
-        return (
-          <>
-            {/* Selected channel stays visible outside animation */}
-            {collapsed && selectedChild}
-
-            {/* Other channels animate closed */}
-            <div
-              className={classNames(css.CategoryContent, {
-                [css.CategoryContentCollapsed]: collapsed,
-              })}
-            >
-              <div className={css.CategoryContentInner}>
-                {collapsed && selectedChildId ? otherChildren : children}
-              </div>
-            </div>
-          </>
-        );
-      })()}
+      <div
+        className={classNames(css.CategoryContent, {
+          // Don't collapse if there's an active child (selected room or connected voice)
+          [css.CategoryContentCollapsed]: collapsed && !selectedChildId,
+        })}
+      >
+        <div className={css.CategoryContentInner}>
+          {children}
+        </div>
+      </div>
 
       {/* Drop target below category */}
       <div

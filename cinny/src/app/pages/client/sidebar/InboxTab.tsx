@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon, Icons } from 'folds';
+import { useLiveKitContext } from '../../../features/voice';
 import { useAtomValue } from 'jotai';
 import {
   SidebarAvatar,
@@ -23,12 +24,16 @@ import { useNavToActivePathAtom } from '../../../state/hooks/navToActivePath';
 export function InboxTab() {
   const screenSize = useScreenSizeContext();
   const navigate = useNavigate();
+  const { setShowVoiceView } = useLiveKitContext();
   const navToActivePath = useAtomValue(useNavToActivePathAtom());
   const inboxSelected = useInboxSelected();
   const allInvites = useAtomValue(allInvitesAtom);
   const inviteCount = allInvites.length;
 
   const handleInboxClick = () => {
+    // Hide voice view when navigating to inbox
+    setShowVoiceView(false);
+
     if (screenSize === ScreenSize.Mobile) {
       navigate(getInboxPath());
       return;

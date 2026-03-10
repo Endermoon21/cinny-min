@@ -211,8 +211,12 @@ export function UnifiedChannelList({ spaceId, scrollRef, getToLink }: UnifiedCha
   }, [voiceRooms]);
 
   // Get participants for a voice room
+  // For current room, always use LiveKit participants (real-time, immediate updates)
+  // For other rooms, use server-reported participants (polled every 5s)
   const getParticipants = useCallback((roomName: string, isCurrentRoom: boolean) => {
-    if (isCurrentRoom && participants.length > 0) {
+    if (isCurrentRoom) {
+      // Always use LiveKit participants for current room - this ensures
+      // immediate updates when people join/leave
       return participants.map(p => ({
         identity: p.identity,
         name: p.name,
@@ -243,8 +247,10 @@ export function UnifiedChannelList({ spaceId, scrollRef, getToLink }: UnifiedCha
   return (
     <Box direction="Column" gap="100">
       {categories.filter(cat => cat != null).map(category => {
-        // Check if selected room is in this category
-        const hasSelectedChild = selectedRoomId && category.channels.some(ch => ch.id === selectedRoomId);
+        // Check if selected room or connected voice channel is in this category
+        const selectedTextChannel = selectedRoomId && category.channels.some(ch => ch.type === 'text' && ch.id === selectedRoomId);
+        const connectedVoiceChannel = currentRoom && category.channels.some(ch => ch.type === 'voice' && ch.id === currentRoom);
+        const activeChildId = selectedTextChannel ? selectedRoomId : (connectedVoiceChannel ? currentRoom : undefined);
 
         return (
         <DraggableCategory
@@ -255,7 +261,7 @@ export function UnifiedChannelList({ spaceId, scrollRef, getToLink }: UnifiedCha
           onToggle={() => toggleCategoryCollapsed(category.id)}
           onDragging={setDraggingItem}
           disabled={draggingItem?.id === category.id && draggingItem?.type === 'category'}
-          selectedChildId={hasSelectedChild ? selectedRoomId : undefined}
+          selectedChildId={activeChildId}
         >
           {category.channels.filter(ch => ch != null).map(channel => {
             const isVoice = channel.type === 'voice';

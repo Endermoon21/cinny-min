@@ -2,7 +2,7 @@ import React from 'react';
 import { Menu, PopOut, toRem } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { useCloseUserRoomProfile, useUserRoomProfileState } from '../state/hooks/userRoomProfile';
-import { UserRoomProfile } from './user-profile';
+import { UserRoomProfile, ProfilePopupContainer } from './user-profile';
 import { UserRoomProfileState } from '../state/userRoomProfile';
 import { useAllJoinedRoomsSet, useGetRoom } from '../hooks/useGetRoom';
 import { stopPropagation } from '../utils/keyboard';
@@ -34,7 +34,7 @@ function UserRoomProfileContextMenu({ state }: { state: UserRoomProfileState }) 
             escapeDeactivates: stopPropagation,
           }}
         >
-          <Menu style={{ width: toRem(340) }}>
+          <Menu className={ProfilePopupContainer} style={{ width: toRem(340) }}>
             <SpaceProvider value={space ?? null}>
               <RoomProvider value={room}>
                 <UserRoomProfile userId={userId} />

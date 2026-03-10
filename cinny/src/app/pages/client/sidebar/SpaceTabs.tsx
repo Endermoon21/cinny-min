@@ -10,6 +10,7 @@ import React, {
   useState,
 } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLiveKitContext } from '../../../features/voice';
 import {
   Box,
   Icon,
@@ -626,6 +627,7 @@ type SpaceTabsProps = {
 export function SpaceTabs({ scrollRef }: SpaceTabsProps) {
   const navigate = useNavigate();
   const mx = useMatrixClient();
+  const { setShowVoiceView } = useLiveKitContext();
   const screenSize = useScreenSizeContext();
   const roomToParents = useAtomValue(roomToParentsAtom);
   const orphanSpaces = useOrphanSpaces(mx, allRoomsAtom, roomToParents);
@@ -773,6 +775,9 @@ export function SpaceTabs({ scrollRef }: SpaceTabsProps) {
     const target = evt.currentTarget;
     const targetSpaceId = target.getAttribute('data-id');
     if (!targetSpaceId) return;
+
+    // Hide voice view when navigating to a space
+    setShowVoiceView(false);
 
     const spacePath = getSpacePath(getCanonicalAliasOrRoomId(mx, targetSpaceId));
     if (screenSize === ScreenSize.Mobile) {

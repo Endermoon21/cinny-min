@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, MouseEventHandler } from 'react';
+import React, { useRef, useCallback, MouseEventHandler, memo } from 'react';
 import { Box } from 'folds';
 import classNames from 'classnames';
 import { useNavigate } from 'react-router-dom';
@@ -65,6 +65,57 @@ function getDisplayName(identity: string, fallbackName: string): string {
   return fallbackName.split('-')[0];
 }
 
+// Memoized participant item to prevent re-renders from speaking state changes
+interface ParticipantItemProps {
+  identity: string;
+  name: string;
+  isSpeaking?: boolean;
+  isMuted?: boolean;
+  isScreenSharing?: boolean;
+  avatarUrl?: string;
+  displayName: string;
+}
+
+const ParticipantItem = memo(function ParticipantItem({
+  identity,
+  isSpeaking,
+  isMuted,
+  isScreenSharing,
+  avatarUrl,
+  displayName,
+}: ParticipantItemProps) {
+  return (
+    <div
+      className={classNames(css.Participant, {
+        [css.ParticipantSpeaking]: isSpeaking,
+      })}
+    >
+      <div
+        className={classNames(css.ParticipantAvatar, {
+          [css.ParticipantAvatarWithImage]: !!avatarUrl,
+          [css.ParticipantAvatarSpeaking]: isSpeaking,
+        })}
+      >
+        {avatarUrl ? (
+          <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          displayName.charAt(0).toUpperCase()
+        )}
+      </div>
+      <span className={css.ParticipantName}>{displayName}</span>
+      {/* Activity badges */}
+      {isScreenSharing && (
+        <span className={css.LiveBadge}>LIVE</span>
+      )}
+      {isMuted && (
+        <svg className={css.ParticipantMutedIcon} viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 4C10.9 4 10 4.9 10 6V12C10 13.1 10.9 14 12 14C13.1 14 14 13.1 14 12V6C14 4.9 13.1 4 12 4ZM3.27 3L2 4.27L9.73 12H6V12.5C6 15.5 8.72 17.97 12 17.97L16.34 19.58L20.73 23L22 21.73L3.27 3Z" />
+        </svg>
+      )}
+    </div>
+  );
+});
+
 export function DraggableChannel({
   channel,
   categoryId,
@@ -99,8 +150,19 @@ export function DraggableChannel({
   const dropState = useDropTarget(dragItem, targetRef);
   const dropType = dropState?.type;
 
-  // Filter out ingress users for voice channels
-  const displayParticipants = participants.filter(p => !p.identity.endsWith('-stream'));
+  // Filter out ingress users for voice channels, but track who is streaming
+  const streamingIdentities = new Set(
+    participants
+      .filter(p => p.identity.endsWith('-stream'))
+      .map(p => p.identity.replace(/-stream$/, ''))
+  );
+  const displayParticipants = participants
+    .filter(p => !p.identity.endsWith('-stream'))
+    .map(p => ({
+      ...p,
+      // Show as streaming if participant or their -stream counterpart is streaming
+      isScreenSharing: p.isScreenSharing || streamingIdentities.has(p.identity),
+    }));
 
   const handleClick: MouseEventHandler = useCallback((e) => {
     // Don't handle click if we just finished dragging
@@ -117,6 +179,8 @@ export function DraggableChannel({
         onVoiceChannelClick?.(channel.id);
       }
     } else if (linkPath) {
+      // Hide voice view when navigating to a text channel
+      setShowVoiceView(false);
       navigate(linkPath);
     }
   }, [disabled, isVoice, isCurrentVoiceRoom, setShowVoiceView, onVoiceChannelClick, channel.id, linkPath, navigate]);
@@ -173,35 +237,16 @@ export function DraggableChannel({
             const avatarUrl = profile?.avatarUrl;
 
             return (
-              <div
+              <ParticipantItem
                 key={p.identity}
-                className={classNames(css.Participant, {
-                  [css.ParticipantSpeaking]: p.isSpeaking,
-                })}
-              >
-                <div
-                  className={classNames(css.ParticipantAvatar, {
-                    [css.ParticipantAvatarWithImage]: !!avatarUrl,
-                    [css.ParticipantAvatarSpeaking]: p.isSpeaking,
-                  })}
-                >
-                  {avatarUrl ? (
-                    <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    displayName.charAt(0).toUpperCase()
-                  )}
-                </div>
-                <span className={css.ParticipantName}>{displayName}</span>
-                {/* Activity badges */}
-                {p.isScreenSharing && (
-                  <span className={css.LiveBadge}>LIVE</span>
-                )}
-                {p.isMuted && (
-                  <svg className={css.ParticipantMutedIcon} viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 4C10.9 4 10 4.9 10 6V12C10 13.1 10.9 14 12 14C13.1 14 14 13.1 14 12V6C14 4.9 13.1 4 12 4ZM3.27 3L2 4.27L9.73 12H6V12.5C6 15.5 8.72 17.97 12 17.97L16.34 19.58L20.73 23L22 21.73L3.27 3Z" />
-                  </svg>
-                )}
-              </div>
+                identity={p.identity}
+                name={p.name}
+                isSpeaking={p.isSpeaking}
+                isMuted={p.isMuted}
+                isScreenSharing={p.isScreenSharing}
+                avatarUrl={avatarUrl}
+                displayName={displayName}
+              />
             );
           })}
         </div>

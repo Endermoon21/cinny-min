@@ -1,6 +1,7 @@
 import React from 'react';
 import { Icon, Icons } from 'folds';
 import { useNavigate } from 'react-router-dom';
+import { useLiveKitContext } from '../../../features/voice';
 import { useAtomValue } from 'jotai';
 import { SidebarAvatar, SidebarItem, SidebarItemTooltip } from '../../../components/sidebar';
 import { useExploreSelected } from '../../../hooks/router/useExploreSelected';
@@ -21,11 +22,15 @@ export function ExploreTab() {
   const screenSize = useScreenSizeContext();
   const clientConfig = useClientConfig();
   const navigate = useNavigate();
+  const { setShowVoiceView } = useLiveKitContext();
   const navToActivePath = useAtomValue(useNavToActivePathAtom());
 
   const exploreSelected = useExploreSelected();
 
   const handleExploreClick = () => {
+    // Hide voice view when navigating to explore
+    setShowVoiceView(false);
+
     if (screenSize === ScreenSize.Mobile) {
       navigate(getExplorePath());
       return;

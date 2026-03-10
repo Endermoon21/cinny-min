@@ -1,5 +1,16 @@
-import { style } from '@vanilla-extract/css';
+import { style, keyframes } from '@vanilla-extract/css';
 import { color, config, toRem } from 'folds';
+
+// Profile popup animation
+const profileFadeIn = keyframes({
+  '0%': { opacity: 0, transform: 'scale(0.95) translateY(4px)' },
+  '100%': { opacity: 1, transform: 'scale(1) translateY(0)' },
+});
+
+export const ProfilePopupContainer = style({
+  animation: `${profileFadeIn} 0.15s cubic-bezier(0.4, 0, 0.2, 1)`,
+  transformOrigin: 'top left',
+});
 
 export const UserHeader = style({
   position: 'absolute',
