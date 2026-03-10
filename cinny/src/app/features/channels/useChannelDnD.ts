@@ -45,18 +45,41 @@ export function useDraggableChannel(
     const target = targetRef.current;
     const dragHandle = dragHandleRef?.current ?? undefined;
 
-    if (!target) return undefined;
+    if (!target) {
+      console.warn('[DnD] No target element');
+      return undefined;
+    }
 
-    return draggable({
+    console.log('[DnD] Registering draggable:', itemRef.current.id, 'handle:', !!dragHandle);
+
+    // Explicitly set draggable attribute for Tauri WebView compatibility
+    target.setAttribute('draggable', 'true');
+
+    // Debug: add native drag event listeners
+    const onNativeDragStart = (e: DragEvent) => {
+      console.log('[DnD] Native dragstart event fired on:', itemRef.current.id, e);
+    };
+    const onNativeDrag = () => {
+      console.log('[DnD] Native drag event');
+    };
+    target.addEventListener('dragstart', onNativeDragStart);
+    target.addEventListener('drag', onNativeDrag);
+
+    const cleanup = draggable({
       element: target,
       dragHandle,
-      getInitialData: () => ({ item: itemRef.current }),
+      getInitialData: () => {
+        console.log('[DnD] getInitialData called');
+        return { item: itemRef.current };
+      },
       onDragStart: () => {
+        console.log('[DnD] onDragStart:', itemRef.current.id);
         dragJustOccurred = true;
         setDragging(true);
         onDraggingRef.current(itemRef.current);
       },
       onDrop: () => {
+        console.log('[DnD] onDrop:', itemRef.current.id);
         setDragging(false);
         onDraggingRef.current(undefined);
         // Reset flag after a short delay to allow click to be suppressed
@@ -65,6 +88,13 @@ export function useDraggableChannel(
         }, 100);
       },
     });
+
+    return () => {
+      target.removeEventListener('dragstart', onNativeDragStart);
+      target.removeEventListener('drag', onNativeDrag);
+      target.removeAttribute('draggable');
+      cleanup();
+    };
   }, [targetRef, dragHandleRef]);
 
   return dragging;
