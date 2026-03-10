@@ -118,7 +118,12 @@ export function useDropTarget(
 
   useEffect(() => {
     const target = targetRef.current;
-    if (!target) return undefined;
+    if (!target) {
+      console.warn('[DnD DropTarget] No target element');
+      return undefined;
+    }
+
+    console.log('[DnD DropTarget] Registering drop target:', itemRef.current.id);
 
     return dropTargetForElements({
       element: target,
@@ -127,13 +132,19 @@ export function useDropTarget(
         const currentItem = itemRef.current;
         // Don't drop on self
         if (dragItem.id === currentItem.id && dragItem.type === currentItem.type) {
+          console.log('[DnD DropTarget] canDrop: false (self)');
           return false;
         }
         // Custom validation
         if (canDropCallbackRef.current && !canDropCallbackRef.current(dragItem)) {
+          console.log('[DnD DropTarget] canDrop: false (callback)');
           return false;
         }
+        console.log('[DnD DropTarget] canDrop: true for', currentItem.id);
         return true;
+      },
+      onDragEnter: () => {
+        console.log('[DnD DropTarget] onDragEnter:', itemRef.current.id);
       },
       getData: ({ input, element }) => {
         const currentItem = itemRef.current;
@@ -161,6 +172,7 @@ export function useDropTarget(
         );
 
         const instruction: Instruction | null = extractInstruction(insData);
+        console.log('[DnD DropTarget] getData instruction:', instruction?.type, 'for', currentItem.id);
         setDropState(instruction ?? undefined);
 
         return {
@@ -168,8 +180,14 @@ export function useDropTarget(
           instructionType: instruction ? instruction.type : undefined,
         };
       },
-      onDragLeave: () => setDropState(undefined),
-      onDrop: () => setDropState(undefined),
+      onDragLeave: () => {
+        console.log('[DnD DropTarget] onDragLeave:', itemRef.current.id);
+        setDropState(undefined);
+      },
+      onDrop: () => {
+        console.log('[DnD DropTarget] onDrop:', itemRef.current.id);
+        setDropState(undefined);
+      },
     });
   }, [targetRef]);
 
@@ -233,20 +251,38 @@ export function useChannelDnDMonitor(
       return undefined;
     }
 
+    console.log('[DnD Monitor] Registering monitor on scroll element');
+
     return combine(
       monitorForElements({
+        onDragStart: ({ source }) => {
+          console.log('[DnD Monitor] onDragStart:', source.data);
+        },
         onDrop: ({ source, location }) => {
+          console.log('[DnD Monitor] onDrop - source:', source.data);
+          console.log('[DnD Monitor] onDrop - dropTargets:', location.current.dropTargets);
           onDragging(undefined);
 
           const { dropTargets } = location.current;
-          if (dropTargets.length === 0) return;
+          if (dropTargets.length === 0) {
+            console.log('[DnD Monitor] No drop targets!');
+            return;
+          }
 
           const dragItem = source.data.item as ChannelDragData;
           const targetItem = dropTargets[0].data.item as ChannelDragData;
           const instructionType = dropTargets[0].data.instructionType as InstructionType | undefined;
 
-          if (!instructionType) return;
+          console.log('[DnD Monitor] dragItem:', dragItem);
+          console.log('[DnD Monitor] targetItem:', targetItem);
+          console.log('[DnD Monitor] instructionType:', instructionType);
 
+          if (!instructionType) {
+            console.log('[DnD Monitor] No instruction type!');
+            return;
+          }
+
+          console.log('[DnD Monitor] Calling onReorder');
           onReorder(dragItem, targetItem, instructionType);
         },
       }),
