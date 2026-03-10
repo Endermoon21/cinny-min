@@ -4,20 +4,6 @@ import classNames from 'classnames';
 import { useDraggableChannel, useDropTarget, useDropTargetInstruction, ChannelDragData, wasDragOperation } from './useChannelDnD';
 import * as css from './unifiedChannels.css';
 
-// Drag handle grip icon (6 dots like Discord)
-function DragGrip() {
-  return (
-    <svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor">
-      <circle cx="2" cy="2" r="1.5" />
-      <circle cx="6" cy="2" r="1.5" />
-      <circle cx="2" cy="7" r="1.5" />
-      <circle cx="6" cy="7" r="1.5" />
-      <circle cx="2" cy="12" r="1.5" />
-      <circle cx="6" cy="12" r="1.5" />
-    </svg>
-  );
-}
-
 interface DraggableCategoryProps {
   id: string;
   name: string;
@@ -38,7 +24,6 @@ export function DraggableCategory({
   children,
 }: DraggableCategoryProps) {
   const headerRef = useRef<HTMLDivElement>(null);
-  const dragHandleRef = useRef<HTMLDivElement>(null);
   const aboveTargetRef = useRef<HTMLDivElement>(null);
   const belowTargetRef = useRef<HTMLDivElement>(null);
 
@@ -47,8 +32,8 @@ export function DraggableCategory({
     id,
   };
 
-  // Use drag handle for dragging (Discord-style)
-  const dragging = useDraggableChannel(dragItem, headerRef, onDragging, dragHandleRef);
+  // Make entire category header draggable
+  const dragging = useDraggableChannel(dragItem, headerRef, onDragging);
   const dropState = useDropTarget(dragItem, headerRef, (dragItem) => {
     // Only allow channels to be dropped into categories
     return dragItem.type === 'channel';
@@ -97,11 +82,6 @@ export function DraggableCategory({
       >
         {orderAbove === 'reorder-above' && <div className={css.DropIndicatorAbove} />}
         {orderBelow === 'reorder-below' && <div className={css.DropIndicatorBelow} />}
-
-        {/* Drag handle (grip icon) */}
-        <div ref={dragHandleRef} className={css.DragHandle}>
-          <DragGrip />
-        </div>
 
         <Icon
           src={Icons.ChevronBottom}
