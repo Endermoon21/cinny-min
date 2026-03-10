@@ -269,13 +269,18 @@ export function useChannelDnDMonitor(
             return;
           }
 
-          const dragItem = source.data.item as ChannelDragData;
-          const targetItem = dropTargets[0].data.item as ChannelDragData;
+          const dragItem = source.data.item as ChannelDragData | undefined;
+          const targetItem = dropTargets[0].data.item as ChannelDragData | undefined;
           const instructionType = dropTargets[0].data.instructionType as InstructionType | undefined;
 
           console.log('[DnD Monitor] dragItem:', dragItem);
           console.log('[DnD Monitor] targetItem:', targetItem);
           console.log('[DnD Monitor] instructionType:', instructionType);
+
+          if (!dragItem || !targetItem) {
+            console.log('[DnD Monitor] Missing drag or target item!');
+            return;
+          }
 
           if (!instructionType) {
             console.log('[DnD Monitor] No instruction type!');
