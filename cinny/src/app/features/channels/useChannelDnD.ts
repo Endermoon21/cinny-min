@@ -244,6 +244,12 @@ export function useChannelDnDMonitor(
   onDragging: (item?: ChannelDragData) => void,
   onReorder: OnReorderCallback
 ) {
+  // Store callbacks in refs to keep monitor stable
+  const onDraggingRef = useRef(onDragging);
+  onDraggingRef.current = onDragging;
+  const onReorderRef = useRef(onReorder);
+  onReorderRef.current = onReorder;
+
   useEffect(() => {
     const scrollElement = scrollRef.current;
     if (!scrollElement) {
@@ -261,7 +267,7 @@ export function useChannelDnDMonitor(
         onDrop: ({ source, location }) => {
           console.log('[DnD Monitor] onDrop - source:', source.data);
           console.log('[DnD Monitor] onDrop - dropTargets:', location.current.dropTargets);
-          onDragging(undefined);
+          onDraggingRef.current(undefined);
 
           const { dropTargets } = location.current;
           if (dropTargets.length === 0) {
@@ -288,14 +294,14 @@ export function useChannelDnDMonitor(
           }
 
           console.log('[DnD Monitor] Calling onReorder');
-          onReorder(dragItem, targetItem, instructionType);
+          onReorderRef.current(dragItem, targetItem, instructionType);
         },
       }),
       autoScrollForElements({
         element: scrollElement,
       })
     );
-  }, [scrollRef, onDragging, onReorder]);
+  }, [scrollRef]); // Only depend on scrollRef - callbacks are in refs
 }
 
 // Helper to determine what action to take based on drag-drop result

@@ -259,7 +259,8 @@ export function useChannelLayout({ spaceId }: UseChannelLayoutOptions): UseChann
     // Insert at new position
     toCat.channels.splice(newOrder, 0, channel);
 
-    // Reorder
+    // Reorder (filter out any null/undefined channels)
+    toCat.channels = toCat.channels.filter(ch => ch != null);
     toCat.channels.forEach((ch, idx) => { ch.order = idx; });
 
     const newLayout: ChannelLayout = {
@@ -291,6 +292,8 @@ export function useChannelLayout({ spaceId }: UseChannelLayoutOptions): UseChann
 
     const [channel] = cat.channels.splice(oldIndex, 1);
     cat.channels.splice(newOrder, 0, channel);
+    // Filter out any null/undefined channels
+    cat.channels = cat.channels.filter(ch => ch != null);
     cat.channels.forEach((ch, idx) => { ch.order = idx; });
 
     const newLayout: ChannelLayout = {

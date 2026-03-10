@@ -251,7 +251,7 @@ export function UnifiedChannelList({ spaceId, scrollRef, getToLink }: UnifiedCha
           onDragging={setDraggingItem}
           disabled={draggingItem?.id === category.id && draggingItem?.type === 'category'}
         >
-          {category.channels.map(channel => {
+          {category.channels.filter(ch => ch != null).map(channel => {
             const isVoice = channel.type === 'voice';
             const room = isVoice ? undefined : mx.getRoom(channel.id);
             const voiceRoom = isVoice ? getVoiceRoom(channel.id) : undefined;
