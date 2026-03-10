@@ -48,8 +48,8 @@ function ParticipantTile({ participant, onWatchStream, isLocalDeafened }: Partic
           )}
         </div>
       </div>
-      {/* Visual indicator for streamers */}
-      {participant.isScreenSharing && (
+      {/* Visual indicator for streamers - only show if actually clickable */}
+      {participant.isScreenSharing && onWatchStream && (
         <Text size="T200" className={css.WatchHint}>Click to watch</Text>
       )}
     </div>
@@ -163,14 +163,19 @@ export function VoiceCallView() {
             </>
           ) : (
             <div className={css.ParticipantGrid}>
-              {participants.map((p) => (
-                <ParticipantTile
-                  key={p.identity}
-                  participant={p}
-                  onWatchStream={p.isScreenSharing ? () => setViewingStream(true) : undefined}
-                  isLocalDeafened={isDeafened}
-                />
-              ))}
+              {participants.map((p) => {
+                // Only make clickable if screen share track is actually available
+                // screenShareInfo is set when the video track is subscribed
+                const canWatch = p.isScreenSharing && screenShareInfo !== null;
+                return (
+                  <ParticipantTile
+                    key={p.identity}
+                    participant={p}
+                    onWatchStream={canWatch ? () => setViewingStream(true) : undefined}
+                    isLocalDeafened={isDeafened}
+                  />
+                );
+              })}
             </div>
           )}
         </div>

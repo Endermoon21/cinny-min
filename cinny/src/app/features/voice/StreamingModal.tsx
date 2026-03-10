@@ -104,18 +104,18 @@ interface PresetConfig {
 const QUALITY_PRESETS: Record<Exclude<QualityPreset, "custom">, PresetConfig> = {
   performance: {
     label: "Performance",
-    description: "720p60 • Low latency",
+    description: "720p30 • Low latency",
     width: 1280,
     height: 720,
     fps: 30,
-    bitrate: 4000,
+    bitrate: 3000,
   },
   balanced: {
     label: "Balanced",
     description: "1080p60 • Recommended",
     width: 1920,
     height: 1080,
-    fps: 30,
+    fps: 60,
     bitrate: 6000,
   },
   quality: {
@@ -123,7 +123,7 @@ const QUALITY_PRESETS: Record<Exclude<QualityPreset, "custom">, PresetConfig> = 
     description: "1080p60 • High bitrate",
     width: 1920,
     height: 1080,
-    fps: 30,
+    fps: 60,
     bitrate: 10000,
   },
 };

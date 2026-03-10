@@ -373,7 +373,7 @@ export function LiveKitProvider({ children }: { children: ReactNode }) {
       const data = await response.json();
 
       const roomOptions: RoomOptions = {
-        adaptiveStream: true,
+        adaptiveStream: false, // Disabled for faster stream ingress subscription
         dynacast: true,
         audioCaptureDefaults: {
           echoCancellation: true,

@@ -350,6 +350,7 @@ fn build_gstreamer_pipeline(config: &StreamConfig) -> String {
     let mut whip_props = format!(
         "whipclientsink name=whip \
 video-caps=\"video/x-h264,profile=constrained-baseline\" \
+congestion-control=gcc \
 start-bitrate={} \
 min-bitrate=500000 \
 max-bitrate={} \
