@@ -33,6 +33,14 @@ export function useDraggableChannel(
 ): boolean {
   const [dragging, setDragging] = useState(false);
 
+  // Store item in a ref to avoid re-running useEffect on every render
+  const itemRef = useRef(item);
+  itemRef.current = item;
+
+  // Store onDragging callback in ref to keep it stable
+  const onDraggingRef = useRef(onDragging);
+  onDraggingRef.current = onDragging;
+
   useEffect(() => {
     const target = targetRef.current;
     const dragHandle = dragHandleRef?.current ?? undefined;
@@ -42,22 +50,22 @@ export function useDraggableChannel(
     return draggable({
       element: target,
       dragHandle,
-      getInitialData: () => ({ item }),
+      getInitialData: () => ({ item: itemRef.current }),
       onDragStart: () => {
         dragJustOccurred = true;
         setDragging(true);
-        onDragging(item);
+        onDraggingRef.current(itemRef.current);
       },
       onDrop: () => {
         setDragging(false);
-        onDragging(undefined);
+        onDraggingRef.current(undefined);
         // Reset flag after a short delay to allow click to be suppressed
         setTimeout(() => {
           dragJustOccurred = false;
         }, 100);
       },
     });
-  }, [targetRef, dragHandleRef, item, onDragging]);
+  }, [targetRef, dragHandleRef]);
 
   return dragging;
 }
@@ -70,6 +78,14 @@ export function useDropTarget(
 ): Instruction | undefined {
   const [dropState, setDropState] = useState<Instruction>();
 
+  // Store item in ref to avoid re-running useEffect
+  const itemRef = useRef(item);
+  itemRef.current = item;
+
+  // Store callback in ref
+  const canDropCallbackRef = useRef(canDropCallback);
+  canDropCallbackRef.current = canDropCallback;
+
   useEffect(() => {
     const target = targetRef.current;
     if (!target) return undefined;
@@ -78,22 +94,24 @@ export function useDropTarget(
       element: target,
       canDrop: ({ source }) => {
         const dragItem = source.data.item as ChannelDragData;
+        const currentItem = itemRef.current;
         // Don't drop on self
-        if (dragItem.id === item.id && dragItem.type === item.type) {
+        if (dragItem.id === currentItem.id && dragItem.type === currentItem.type) {
           return false;
         }
         // Custom validation
-        if (canDropCallback && !canDropCallback(dragItem)) {
+        if (canDropCallbackRef.current && !canDropCallbackRef.current(dragItem)) {
           return false;
         }
         return true;
       },
       getData: ({ input, element }) => {
+        const currentItem = itemRef.current;
         // Block certain instructions based on item type
         const block: Instruction['type'][] = [];
 
         // Channels can't have children dropped into them
-        if (item.type === 'channel') {
+        if (currentItem.type === 'channel') {
           block.push('make-child');
         }
 
@@ -116,14 +134,14 @@ export function useDropTarget(
         setDropState(instruction ?? undefined);
 
         return {
-          item,
+          item: currentItem,
           instructionType: instruction ? instruction.type : undefined,
         };
       },
       onDragLeave: () => setDropState(undefined),
       onDrop: () => setDropState(undefined),
     });
-  }, [item, targetRef, canDropCallback]);
+  }, [targetRef]);
 
   return dropState;
 }
@@ -136,6 +154,10 @@ export function useDropTargetInstruction<T extends InstructionType>(
 ): T | undefined {
   const [dropState, setDropState] = useState<T>();
 
+  // Store item in ref to avoid re-running useEffect
+  const itemRef = useRef(item);
+  itemRef.current = item;
+
   useEffect(() => {
     const target = targetRef.current;
     if (!target) return undefined;
@@ -144,19 +166,20 @@ export function useDropTargetInstruction<T extends InstructionType>(
       element: target,
       canDrop: ({ source }) => {
         const dragItem = source.data.item as ChannelDragData;
-        return dragItem.id !== item.id || dragItem.type !== item.type;
+        const currentItem = itemRef.current;
+        return dragItem.id !== currentItem.id || dragItem.type !== currentItem.type;
       },
       getData: () => {
         setDropState(instructionType);
         return {
-          item,
+          item: itemRef.current,
           instructionType,
         };
       },
       onDragLeave: () => setDropState(undefined),
       onDrop: () => setDropState(undefined),
     });
-  }, [item, targetRef, instructionType]);
+  }, [targetRef, instructionType]);
 
   return dropState;
 }

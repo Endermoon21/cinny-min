@@ -14,13 +14,17 @@ export const DragHandle = style({
   justifyContent: 'center',
   width: '12px',
   height: '20px',
-  opacity: 0,
+  opacity: 0.3,
   cursor: 'grab',
   color: color.Surface.OnContainer,
   flexShrink: 0,
   transition: 'opacity 0.15s',
   marginLeft: '-4px',
   marginRight: '-4px',
+
+  ':hover': {
+    opacity: 1,
+  },
 
   ':active': {
     cursor: 'grabbing',
