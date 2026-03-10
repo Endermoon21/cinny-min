@@ -89,7 +89,7 @@ export const CategoryName = style({
 export const ChannelItem = style({
   display: 'flex',
   alignItems: 'center',
-  gap: config.space.S200,
+  gap: config.space.S100,
   padding: `${config.space.S200} ${config.space.S300}`,
   marginLeft: config.space.S100,
   marginTop: config.space.S50,
