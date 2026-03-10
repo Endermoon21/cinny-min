@@ -9,10 +9,12 @@ import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
 import { Settings } from '../../../features/settings';
 import { useUserProfile } from '../../../hooks/useUserProfile';
 import { Modal500 } from '../../../components/Modal500';
+import { useLiveKitContext } from '../../../features/voice';
 
 export function SettingsTab() {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
+  const { setShowVoiceView } = useLiveKitContext();
   const userId = mx.getUserId()!;
   const profile = useUserProfile(userId);
 
@@ -23,7 +25,10 @@ export function SettingsTab() {
     ? mxcUrlToHttp(mx, profile.avatarUrl, useAuthentication, 96, 96, 'crop') ?? undefined
     : undefined;
 
-  const openSettings = () => setSettings(true);
+  const openSettings = () => {
+    setShowVoiceView(false);
+    setSettings(true);
+  };
   const closeSettings = () => setSettings(false);
 
   return (
