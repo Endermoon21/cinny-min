@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Box, Text, IconButton, config } from 'folds';
 import classNames from 'classnames';
 import { useLiveKitContext, VoiceParticipant } from './LiveKitContext';
@@ -149,30 +149,38 @@ export function VoiceCallView() {
   const [gridLayout, setGridLayout] = useState({ cols: 2, rows: 2, tileSize: 150 });
 
   // Calculate optimal grid layout when container size or participant count changes
-  const updateGridLayout = useCallback(() => {
-    if (!gridContainerRef.current || participants.length === 0) return;
-
-    const rect = gridContainerRef.current.getBoundingClientRect();
-    const padding = 16; // S200 padding
-    const gap = 8; // S200 gap
-    const containerWidth = rect.width - padding * 2;
-    const containerHeight = rect.height - padding * 2;
-
-    const layout = calculateOptimalLayout(containerWidth, containerHeight, participants.length, gap);
-    setGridLayout(layout);
-  }, [participants.length]);
-
-  // Update layout on mount and resize
   useEffect(() => {
-    updateGridLayout();
+    const container = gridContainerRef.current;
+    if (!container || participants.length === 0) return;
 
-    const resizeObserver = new ResizeObserver(updateGridLayout);
-    if (gridContainerRef.current) {
-      resizeObserver.observe(gridContainerRef.current);
-    }
+    const calculateAndSetLayout = () => {
+      const rect = container.getBoundingClientRect();
+      // Skip if container has no size yet
+      if (rect.width === 0 || rect.height === 0) return;
 
-    return () => resizeObserver.disconnect();
-  }, [updateGridLayout]);
+      const padding = 16; // S200 padding
+      const gap = 8; // S200 gap
+      const containerWidth = rect.width - padding;
+      const containerHeight = rect.height - padding;
+
+      const layout = calculateOptimalLayout(containerWidth, containerHeight, participants.length, gap);
+      setGridLayout(layout);
+    };
+
+    // Initial calculation after DOM paint
+    const rafId = requestAnimationFrame(calculateAndSetLayout);
+
+    // Recalculate on resize
+    const resizeObserver = new ResizeObserver(() => {
+      requestAnimationFrame(calculateAndSetLayout);
+    });
+    resizeObserver.observe(container);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      resizeObserver.disconnect();
+    };
+  }, [participants.length]);
 
   // Reset viewing state when screen share ends
   useEffect(() => {
