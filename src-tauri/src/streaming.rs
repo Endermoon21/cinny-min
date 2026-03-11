@@ -279,23 +279,19 @@ fn list_windows_sources_safe() -> Result<Vec<CaptureSource>, String> {
     let mut window_info: Vec<(u64, String, u32, u32)> = Vec::new();
 
     unsafe {
-        struct CallbackData {
-            windows: Vec<(u64, String, u32, u32)>, // hwnd, title, width, height
-        }
-
         struct SkipInfo {
             title: String,
             reason: String,
         }
 
-        struct CallbackDataInner {
+        struct CallbackData {
             windows: Vec<(u64, String, u32, u32)>,
             skipped: Vec<SkipInfo>,
             total_checked: u32,
         }
 
         unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
-            let data = &mut *(lparam.0 as *mut CallbackDataInner);
+            let data = &mut *(lparam.0 as *mut CallbackData);
             data.total_checked += 1;
 
             if !IsWindowVisible(hwnd).as_bool() {
@@ -362,8 +358,6 @@ fn list_windows_sources_safe() -> Result<Vec<CaptureSource>, String> {
 
             BOOL(1)
         }
-
-        type CallbackData = CallbackDataInner;
 
         let mut callback_data = CallbackData {
             windows: Vec::new(),
