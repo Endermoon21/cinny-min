@@ -33,6 +33,7 @@ export function VoiceBanner() {
     isNoiseFilterPending,
     setNoiseFilterEnabled,
     isNoiseFilterSupported,
+    isNativeStreaming,
   } = useLiveKitContext();
 
   const [showModal, setShowModal] = useState(false);
@@ -138,7 +139,21 @@ export function VoiceBanner() {
         <div className={css.VoiceBannerInfo}>
           <PingVisualizer />
           <div className={css.VoiceStatusSection}>
-            <span className={css.VoiceConnectedLabel}>Voice Connected</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span className={css.VoiceConnectedLabel}>Voice Connected</span>
+              {isNativeStreaming && (
+                <span style={{
+                  backgroundColor: '#ED4245',
+                  color: '#fff',
+                  padding: '1px 5px',
+                  borderRadius: '3px',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.02em',
+                }}>LIVE</span>
+              )}
+            </div>
             <span className={css.VoiceChannelName}>{roomDisplayName}</span>
           </div>
         </div>
