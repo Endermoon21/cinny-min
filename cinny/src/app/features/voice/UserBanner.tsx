@@ -74,6 +74,8 @@ export function UserBanner() {
     currentRoom,
     isMuted,
     isDeafened,
+    isCameraEnabled,
+    isNativeStreaming,
     toggleMute,
     toggleDeafen,
     room,
@@ -142,8 +144,16 @@ export function UserBanner() {
             ) : (
               <span>{displayName.charAt(0).toUpperCase()}</span>
             )}
-            {/* Status badge - show mute/deafen icons when active, otherwise show online status */}
-            {isConnected && (isMuted || isDeafened) ? (
+            {/* Status badge - priority: LIVE > VIDEO > mute/deafen > online */}
+            {isConnected && isNativeStreaming ? (
+              <div className={css.UserMuteStatusBadge} style={{ backgroundColor: '#ED4245', fontSize: '7px', fontWeight: 700 }}>
+                LIVE
+              </div>
+            ) : isConnected && isCameraEnabled ? (
+              <div className={css.UserMuteStatusBadge} style={{ backgroundColor: '#5865F2', fontSize: '7px', fontWeight: 700 }}>
+                VID
+              </div>
+            ) : isConnected && (isMuted || isDeafened) ? (
               <div className={css.UserMuteStatusBadge}>
                 {isDeafened ? (
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
