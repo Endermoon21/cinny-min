@@ -150,6 +150,9 @@ export function VoiceCallView() {
 
   // Calculate optimal grid layout when container size or participant count changes
   useEffect(() => {
+    // Don't run if viewing stream (grid is hidden)
+    if (viewingStream) return;
+
     const container = gridContainerRef.current;
     if (!container || participants.length === 0) return;
 
@@ -167,8 +170,10 @@ export function VoiceCallView() {
       setGridLayout(layout);
     };
 
-    // Initial calculation after DOM paint
-    const rafId = requestAnimationFrame(calculateAndSetLayout);
+    // Double RAF to ensure layout is fully computed
+    const rafId = requestAnimationFrame(() => {
+      requestAnimationFrame(calculateAndSetLayout);
+    });
 
     // Recalculate on resize
     const resizeObserver = new ResizeObserver(() => {
@@ -180,7 +185,7 @@ export function VoiceCallView() {
       cancelAnimationFrame(rafId);
       resizeObserver.disconnect();
     };
-  }, [participants.length]);
+  }, [participants.length, viewingStream]);
 
   // Reset viewing state when screen share ends
   useEffect(() => {
