@@ -28,6 +28,7 @@ export interface NativeCaptureSource {
   source_type: 'screen' | 'window';
   width: number | null;
   height: number | null;
+  hwnd: number | null; // Window handle for window capture
 }
 
 /** Stream configuration */

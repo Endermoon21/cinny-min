@@ -23,6 +23,7 @@ pub struct CaptureSource {
     pub source_type: String, // "screen" or "window"
     pub width: Option<u32>,
     pub height: Option<u32>,
+    pub hwnd: Option<u64>, // Window handle for window capture
 }
 
 /// Stream configuration
@@ -138,6 +139,7 @@ pub async fn list_capture_sources() -> Result<Vec<CaptureSource>, String> {
                     source_type: "screen".to_string(),
                     width: None,
                     height: None,
+                    hwnd: None,
                 }])
             }
         }
@@ -150,6 +152,7 @@ pub async fn list_capture_sources() -> Result<Vec<CaptureSource>, String> {
             source_type: "screen".to_string(),
             width: None,
             height: None,
+            hwnd: None,
         }])
     }
 }
@@ -203,6 +206,7 @@ fn list_windows_sources_safe() -> Result<Vec<CaptureSource>, String> {
                     source_type: "screen".to_string(),
                     width: Some(width),
                     height: Some(height),
+                    hwnd: None,
                 });
 
                 data.index += 1;
@@ -235,6 +239,7 @@ fn list_windows_sources_safe() -> Result<Vec<CaptureSource>, String> {
             source_type: "screen".to_string(),
             width: None,
             height: None,
+            hwnd: None,
         });
     }
 
@@ -289,13 +294,15 @@ fn list_windows_sources_safe() -> Result<Vec<CaptureSource>, String> {
                     return BOOL(0);
                 }
 
-                let escaped_title = title.replace("\"", "\\\"");
+                // Store HWND as u64 for cross-boundary safety
+                let hwnd_value = hwnd.0 as u64;
                 sources.push(CaptureSource {
-                    id: format!("title={}", escaped_title),
+                    id: format!("hwnd:{}", hwnd_value),
                     name: if title.len() > 45 { format!("{}...", &title[..42]) } else { title },
                     source_type: "window".to_string(),
                     width: Some(width),
                     height: Some(height),
+                    hwnd: Some(hwnd_value),
                 });
             }
 
@@ -316,15 +323,16 @@ fn build_video_capture(config: &StreamConfig) -> String {
     #[cfg(target_os = "windows")]
     {
         // Determine capture source type
-        if config.source_id.starts_with("title=") {
-            // Window capture using window title
-            let title = &config.source_id[6..]; // Strip "title=" prefix
+        if config.source_id.starts_with("hwnd:") {
+            // Window capture using window handle (HWND)
+            let hwnd: u64 = config.source_id[5..].parse().unwrap_or(0);
+            // Use WGC (Windows Graphics Capture) for window capture
             video.push_str(&format!(
-                "d3d11screencapturesrc window-name=\"{}\" show-cursor=true",
-                title
+                "d3d11screencapturesrc window-handle={} capture-api=wgc show-cursor=true",
+                hwnd
             ));
         } else if config.source_id.starts_with("monitor:") {
-            // Per-monitor capture
+            // Per-monitor capture (DXGI - faster)
             let monitor_index: i32 = config.source_id[8..].parse().unwrap_or(0);
             video.push_str(&format!(
                 "d3d11screencapturesrc monitor-index={} show-cursor=true",
