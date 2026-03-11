@@ -717,9 +717,9 @@ export function VoiceRoom() {
 
     const recalculate = () => {
       const rect = mainArea.getBoundingClientRect();
-      // Account for padding (16px on each side)
-      const containerWidth = rect.width - 32;
-      const containerHeight = rect.height - 32;
+      // Account for MainArea padding (16px) + ParticipantGrid padding (8px) = 24px each side
+      const containerWidth = rect.width - 48;
+      const containerHeight = rect.height - 48;
 
       // Count visible participants (exclude ingress users ending with -stream)
       const visibleCount = participants.filter(p => !p.identity.endsWith("-stream")).length;
