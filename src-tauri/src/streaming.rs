@@ -126,13 +126,41 @@ pub async fn list_capture_sources() -> Result<Vec<CaptureSource>, String> {
     {
         use std::panic;
 
+        log_to_file("list_capture_sources called");
+
         let result = panic::catch_unwind(|| {
             list_windows_sources_safe()
         });
 
         match result {
-            Ok(Ok(sources)) if !sources.is_empty() => Ok(sources),
-            _ => {
+            Ok(Ok(sources)) if !sources.is_empty() => {
+                log_to_file(&format!("Returning {} sources", sources.len()));
+                Ok(sources)
+            },
+            Ok(Ok(sources)) => {
+                log_to_file("Sources empty, returning fallback");
+                Ok(vec![CaptureSource {
+                    id: "monitor:0".to_string(),
+                    name: "Display 1".to_string(),
+                    source_type: "screen".to_string(),
+                    width: None,
+                    height: None,
+                    hwnd: None,
+                }])
+            },
+            Ok(Err(e)) => {
+                log_to_file(&format!("list_windows_sources_safe error: {}", e));
+                Ok(vec![CaptureSource {
+                    id: "monitor:0".to_string(),
+                    name: "Display 1".to_string(),
+                    source_type: "screen".to_string(),
+                    width: None,
+                    height: None,
+                    hwnd: None,
+                }])
+            },
+            Err(panic_info) => {
+                log_to_file(&format!("list_windows_sources_safe panicked: {:?}", panic_info));
                 Ok(vec![CaptureSource {
                     id: "monitor:0".to_string(),
                     name: "Display 1".to_string(),
@@ -244,6 +272,7 @@ fn list_windows_sources_safe() -> Result<Vec<CaptureSource>, String> {
     }
 
     // Enumerate windows
+    log_to_file("Starting window enumeration");
     unsafe {
         unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
             let sources = &mut *(lparam.0 as *mut Vec<CaptureSource>);
@@ -310,7 +339,19 @@ fn list_windows_sources_safe() -> Result<Vec<CaptureSource>, String> {
         }
 
         let sources_ptr = &mut sources as *mut Vec<CaptureSource>;
-        let _ = EnumWindows(Some(enum_callback), LPARAM(sources_ptr as isize));
+        let result = EnumWindows(Some(enum_callback), LPARAM(sources_ptr as isize));
+        log_to_file(&format!("EnumWindows result: {:?}", result));
+    }
+
+    let window_count = sources.iter().filter(|s| s.source_type == "window").count();
+    let screen_count = sources.iter().filter(|s| s.source_type == "screen").count();
+    log_to_file(&format!("Found {} screens, {} windows", screen_count, window_count));
+
+    // Log window names for debugging
+    for source in &sources {
+        if source.source_type == "window" {
+            log_to_file(&format!("Window: {} (hwnd: {:?})", source.name, source.hwnd));
+        }
     }
 
     Ok(sources)
