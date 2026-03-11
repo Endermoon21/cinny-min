@@ -151,11 +151,28 @@ export function VoiceCallView() {
   const [viewingStream, setViewingStream] = useState(false);
   const [gridLayout, setGridLayout] = useState({ cols: 2, rows: 2, tileSize: 150 });
 
+  // Debug: Log component state
+  console.log('[VoiceCallView] Render:', {
+    isConnected,
+    currentRoom,
+    participantCount: participants.length,
+    viewingStream,
+    gridLayout,
+  });
+
   // Calculate optimal grid layout when container size or participant count changes
   useEffect(() => {
+    console.log('[Grid useEffect] Running, viewingStream:', viewingStream, 'participants:', participants.length);
+
     // Don't run if viewing stream (grid is hidden)
-    if (viewingStream) return;
-    if (participants.length === 0) return;
+    if (viewingStream) {
+      console.log('[Grid useEffect] Skipping - viewingStream is true');
+      return;
+    }
+    if (participants.length === 0) {
+      console.log('[Grid useEffect] Skipping - no participants');
+      return;
+    }
 
     const calculateAndSetLayout = () => {
       const container = gridContainerRef.current;
