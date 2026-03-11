@@ -302,6 +302,14 @@ export const ParticipantMutedIcon = style({
   opacity: 0.7,
 });
 
+// Camera icon for participants
+export const ParticipantCameraIcon = style({
+  width: '14px',
+  height: '14px',
+  flexShrink: 0,
+  color: color.Success.Main,
+});
+
 // Category actions
 export const CategoryActions = style({
   display: 'flex',
