@@ -122,9 +122,7 @@ export const ParticipantTile = style({
   transition: 'box-shadow 0.2s',
   boxSizing: 'border-box',
   overflow: 'hidden',
-  // Size set by calculated CSS variable from JavaScript
-  width: 'var(--tile-size, 150px)',
-  height: 'var(--tile-size, 150px)',
+  // Size set via inline style from JavaScript calculation
   flexShrink: 0,
 });
 

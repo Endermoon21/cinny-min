@@ -57,10 +57,11 @@ function calculateOptimalLayout(
 interface ParticipantTileProps {
   participant: VoiceParticipant;
   onWatchStream?: () => void;
-  isLocalDeafened?: boolean; // Only applicable for local user
+  isLocalDeafened?: boolean;
+  tileSize: number;
 }
 
-function ParticipantTile({ participant, onWatchStream, isLocalDeafened }: ParticipantTileProps) {
+function ParticipantTile({ participant, onWatchStream, isLocalDeafened, tileSize }: ParticipantTileProps) {
   const isClickable = participant.isScreenSharing && onWatchStream;
   const showDeafened = participant.isLocal && isLocalDeafened;
 
@@ -70,6 +71,7 @@ function ParticipantTile({ participant, onWatchStream, isLocalDeafened }: Partic
         [css.Speaking]: participant.isSpeaking,
         [css.Clickable]: isClickable,
       })}
+      style={{ width: tileSize, height: tileSize }}
       onClick={isClickable ? onWatchStream : undefined}
       role={isClickable ? 'button' : undefined}
       tabIndex={isClickable ? 0 : undefined}
@@ -242,11 +244,6 @@ export function VoiceCallView() {
             <div
               ref={gridContainerRef}
               className={css.ParticipantGrid}
-              style={{
-                '--grid-cols': gridLayout.cols,
-                '--grid-rows': gridLayout.rows,
-                '--tile-size': `${gridLayout.tileSize}px`,
-              } as React.CSSProperties}
             >
               {participants.map((p) => {
                 // Only make clickable if screen share track is actually available
@@ -258,6 +255,7 @@ export function VoiceCallView() {
                     participant={p}
                     onWatchStream={canWatch ? () => setViewingStream(true) : undefined}
                     isLocalDeafened={isDeafened}
+                    tileSize={gridLayout.tileSize}
                   />
                 );
               })}
