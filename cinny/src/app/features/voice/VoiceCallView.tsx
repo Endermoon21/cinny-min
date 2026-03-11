@@ -1,22 +1,47 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { Box, Text, IconButton, config } from 'folds';
 import classNames from 'classnames';
 import { useLiveKitContext, VoiceParticipant } from './LiveKitContext';
 import * as css from './callView.css';
 
-// Calculate optimal grid layout based on participant count (Discord-style)
-function getGridLayout(count: number): { cols: number; rows: number } {
-  if (count <= 1) return { cols: 1, rows: 1 };
-  if (count <= 2) return { cols: 2, rows: 1 };
-  if (count <= 4) return { cols: 2, rows: 2 };
-  if (count <= 6) return { cols: 3, rows: 2 };
-  if (count <= 9) return { cols: 3, rows: 3 };
-  if (count <= 12) return { cols: 4, rows: 3 };
-  if (count <= 16) return { cols: 4, rows: 4 };
-  // For very large calls, calculate dynamically
-  const cols = Math.ceil(Math.sqrt(count));
-  const rows = Math.ceil(count / cols);
-  return { cols, rows };
+// Calculate optimal grid layout using brute-force algorithm (Zoom-style)
+// Finds the column count that maximizes total tile area
+function calculateOptimalLayout(
+  containerWidth: number,
+  containerHeight: number,
+  tileCount: number,
+  gap: number = 8,
+  aspectRatio: number = 1 // 1 for square tiles
+): { cols: number; rows: number; tileSize: number } {
+  if (tileCount === 0) return { cols: 1, rows: 1, tileSize: 0 };
+
+  let bestLayout = { cols: 1, rows: tileCount, tileSize: 0, area: 0 };
+
+  for (let cols = 1; cols <= tileCount; cols++) {
+    const rows = Math.ceil(tileCount / cols);
+
+    // Calculate available space for tiles (accounting for gaps)
+    const availableWidth = containerWidth - (cols - 1) * gap;
+    const availableHeight = containerHeight - (rows - 1) * gap;
+
+    // Calculate max tile size that fits
+    const maxTileWidth = availableWidth / cols;
+    const maxTileHeight = availableHeight / rows;
+
+    // For square tiles, use the smaller dimension
+    const tileSize = Math.min(maxTileWidth, maxTileHeight / aspectRatio) * aspectRatio;
+
+    // Only consider if tiles fit
+    if (tileSize > 0) {
+      const area = tileSize * tileSize * tileCount;
+
+      if (area > bestLayout.area) {
+        bestLayout = { cols, rows, tileSize, area };
+      }
+    }
+  }
+
+  return { cols: bestLayout.cols, rows: bestLayout.rows, tileSize: bestLayout.tileSize };
 }
 
 interface ParticipantTileProps {
@@ -107,10 +132,35 @@ export function VoiceCallView() {
   } = useLiveKitContext();
 
   const videoContainerRef = useRef<HTMLDivElement>(null);
+  const gridContainerRef = useRef<HTMLDivElement>(null);
   const [viewingStream, setViewingStream] = useState(false);
+  const [gridLayout, setGridLayout] = useState({ cols: 2, rows: 2, tileSize: 150 });
 
-  // Calculate grid layout based on participant count
-  const gridLayout = useMemo(() => getGridLayout(participants.length), [participants.length]);
+  // Calculate optimal grid layout when container size or participant count changes
+  const updateGridLayout = useCallback(() => {
+    if (!gridContainerRef.current || participants.length === 0) return;
+
+    const rect = gridContainerRef.current.getBoundingClientRect();
+    const padding = 16; // S200 padding
+    const gap = 8; // S200 gap
+    const containerWidth = rect.width - padding * 2;
+    const containerHeight = rect.height - padding * 2;
+
+    const layout = calculateOptimalLayout(containerWidth, containerHeight, participants.length, gap);
+    setGridLayout(layout);
+  }, [participants.length]);
+
+  // Update layout on mount and resize
+  useEffect(() => {
+    updateGridLayout();
+
+    const resizeObserver = new ResizeObserver(updateGridLayout);
+    if (gridContainerRef.current) {
+      resizeObserver.observe(gridContainerRef.current);
+    }
+
+    return () => resizeObserver.disconnect();
+  }, [updateGridLayout]);
 
   // Reset viewing state when screen share ends
   useEffect(() => {
@@ -180,10 +230,12 @@ export function VoiceCallView() {
             </>
           ) : (
             <div
+              ref={gridContainerRef}
               className={css.ParticipantGrid}
               style={{
                 '--grid-cols': gridLayout.cols,
                 '--grid-rows': gridLayout.rows,
+                '--tile-size': `${gridLayout.tileSize}px`,
               } as React.CSSProperties}
             >
               {participants.map((p) => {

@@ -83,13 +83,11 @@ export const MainContent = style({
   gap: config.space.S300,
 });
 
-// Participant grid that scales to fit without scrolling (Discord-style)
-// Grid columns/rows are set dynamically via CSS variables
+// Participant grid that scales to fit without scrolling (Discord/Zoom-style)
+// Uses calculated tile size from JavaScript for optimal space usage
 export const ParticipantGrid = style({
-  display: 'grid',
-  // Columns and rows set via CSS variables, using minmax(0, 1fr) to allow shrinking
-  gridTemplateColumns: 'repeat(var(--grid-cols, 2), minmax(0, 1fr))',
-  gridTemplateRows: 'repeat(var(--grid-rows, 2), minmax(0, 1fr))',
+  display: 'flex',
+  flexWrap: 'wrap',
   gap: config.space.S200,
   // Fill the flex container
   flex: 1,
@@ -97,9 +95,9 @@ export const ParticipantGrid = style({
   width: '100%',
   padding: config.space.S200,
   boxSizing: 'border-box',
-  // Stretch items to fill their cells
-  alignItems: 'stretch',
-  justifyItems: 'stretch',
+  // Center the tiles
+  alignContent: 'center',
+  justifyContent: 'center',
 });
 
 // Compact participant strip for when streaming
@@ -123,11 +121,10 @@ export const ParticipantTile = style({
   transition: 'box-shadow 0.2s',
   boxSizing: 'border-box',
   overflow: 'hidden',
-  // Fill the grid cell completely
-  width: '100%',
-  height: '100%',
-  minWidth: 0,
-  minHeight: 0,
+  // Size set by calculated CSS variable from JavaScript
+  width: 'var(--tile-size, 150px)',
+  height: 'var(--tile-size, 150px)',
+  flexShrink: 0,
 });
 
 // Compact tile for strip view during streaming
