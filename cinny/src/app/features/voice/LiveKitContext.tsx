@@ -385,9 +385,21 @@ export function LiveKitProvider({ children }: { children: ReactNode }) {
           dtx: true,
           red: true,
           audioBitrate: 32000,
+          // Video quality settings for camera - high bitrate for good quality
+          videoCodec: 'vp8',
+          videoEncoding: {
+            maxBitrate: 2_500_000, // 2.5 Mbps for 720p webcam
+            maxFramerate: 30,
+          },
+          videoSimulcastLayers: [
+            VideoPresets.h180,
+            VideoPresets.h360,
+            VideoPresets.h720,
+          ],
         },
         videoCaptureDefaults: {
-          resolution: VideoPresets.h1080,
+          resolution: VideoPresets.h720, // 720p is good balance for webcam
+          facingMode: 'user',
         },
       };
 
