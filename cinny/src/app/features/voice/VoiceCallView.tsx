@@ -65,13 +65,16 @@ function ParticipantTile({ participant, onWatchStream, isLocalDeafened, tileSize
   const isClickable = participant.isScreenSharing && onWatchStream;
   const showDeafened = participant.isLocal && isLocalDeafened;
 
+  // Debug: log tile size being applied
+  console.log('[Tile] Rendering with size:', tileSize);
+
   return (
     <div
       className={classNames(css.ParticipantTile, {
         [css.Speaking]: participant.isSpeaking,
         [css.Clickable]: isClickable,
       })}
-      style={{ width: tileSize, height: tileSize }}
+      style={{ width: `${tileSize}px`, height: `${tileSize}px` }}
       onClick={isClickable ? onWatchStream : undefined}
       role={isClickable ? 'button' : undefined}
       tabIndex={isClickable ? 0 : undefined}
@@ -163,14 +166,19 @@ export function VoiceCallView() {
         const rect = container.getBoundingClientRect();
         containerWidth = rect.width;
         containerHeight = rect.height;
+        console.log('[Grid] Container rect:', { width: rect.width, height: rect.height });
       } else {
         // Fallback: estimate based on viewport
         containerWidth = window.innerWidth * 0.85;
         containerHeight = window.innerHeight * 0.6;
+        console.log('[Grid] Using fallback:', { width: containerWidth, height: containerHeight });
       }
 
       // Skip if still no valid size
-      if (containerWidth <= 0 || containerHeight <= 0) return;
+      if (containerWidth <= 0 || containerHeight <= 0) {
+        console.log('[Grid] Invalid size, skipping');
+        return;
+      }
 
       const padding = 16; // S200 padding
       const gap = 8; // S200 gap
@@ -178,10 +186,12 @@ export function VoiceCallView() {
       const availableHeight = containerHeight - padding;
 
       const layout = calculateOptimalLayout(availableWidth, availableHeight, participants.length, gap);
+      console.log('[Grid] Calculated layout:', layout);
 
       // Only update if tileSize changed significantly (avoid jitter)
       setGridLayout(prev => {
         if (Math.abs(prev.tileSize - layout.tileSize) > 5 || prev.cols !== layout.cols) {
+          console.log('[Grid] Updating layout to:', layout);
           return layout;
         }
         return prev;
