@@ -271,11 +271,32 @@ fn list_windows_sources_safe() -> Result<Vec<CaptureSource>, String> {
         });
     }
 
-    // Enumerate windows
+    // Enumerate windows - use a struct to pass both sources and log file handle
     log_to_file("Starting window enumeration");
+
+    // We need to collect windows in a simpler way since we can't call log_to_file from the callback
+    // Let's use a different approach - collect all window info first
+    let mut window_info: Vec<(u64, String, u32, u32)> = Vec::new();
+
     unsafe {
+        struct CallbackData {
+            windows: Vec<(u64, String, u32, u32)>, // hwnd, title, width, height
+        }
+
+        struct SkipInfo {
+            title: String,
+            reason: String,
+        }
+
+        struct CallbackDataInner {
+            windows: Vec<(u64, String, u32, u32)>,
+            skipped: Vec<SkipInfo>,
+            total_checked: u32,
+        }
+
         unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
-            let sources = &mut *(lparam.0 as *mut Vec<CaptureSource>);
+            let data = &mut *(lparam.0 as *mut CallbackDataInner);
+            data.total_checked += 1;
 
             if !IsWindowVisible(hwnd).as_bool() {
                 return BOOL(1);
@@ -305,6 +326,10 @@ fn list_windows_sources_safe() -> Result<Vec<CaptureSource>, String> {
             ];
 
             if skip_titles.iter().any(|&s| title.starts_with(s) || title == s) {
+                data.skipped.push(SkipInfo {
+                    title: title.clone(),
+                    reason: "skip_titles".to_string()
+                });
                 return BOOL(1);
             }
 
@@ -314,33 +339,63 @@ fn list_windows_sources_safe() -> Result<Vec<CaptureSource>, String> {
                 let height = (rect.bottom - rect.top) as u32;
 
                 if width < 200 || height < 150 {
+                    data.skipped.push(SkipInfo {
+                        title: title.clone(),
+                        reason: format!("too_small ({}x{})", width, height)
+                    });
                     return BOOL(1);
                 }
 
-                // Limit window count (monitors already added)
-                let window_count = sources.iter().filter(|s| s.source_type == "window").count();
-                if window_count >= 15 {
+                // Limit window count
+                if data.windows.len() >= 15 {
                     return BOOL(0);
                 }
 
-                // Store HWND as u64 for cross-boundary safety
                 let hwnd_value = hwnd.0 as u64;
-                sources.push(CaptureSource {
-                    id: format!("hwnd:{}", hwnd_value),
-                    name: if title.len() > 45 { format!("{}...", &title[..42]) } else { title },
-                    source_type: "window".to_string(),
-                    width: Some(width),
-                    height: Some(height),
-                    hwnd: Some(hwnd_value),
+                data.windows.push((hwnd_value, title, width, height));
+            } else {
+                data.skipped.push(SkipInfo {
+                    title: title.clone(),
+                    reason: "GetWindowRect failed".to_string()
                 });
             }
 
             BOOL(1)
         }
 
-        let sources_ptr = &mut sources as *mut Vec<CaptureSource>;
-        let result = EnumWindows(Some(enum_callback), LPARAM(sources_ptr as isize));
+        type CallbackData = CallbackDataInner;
+
+        let mut callback_data = CallbackData {
+            windows: Vec::new(),
+            skipped: Vec::new(),
+            total_checked: 0,
+        };
+
+        let result = EnumWindows(Some(enum_callback), LPARAM(&mut callback_data as *mut CallbackData as isize));
         log_to_file(&format!("EnumWindows result: {:?}", result));
+        log_to_file(&format!("Total windows checked: {}", callback_data.total_checked));
+        log_to_file(&format!("Windows found: {}, Skipped: {}", callback_data.windows.len(), callback_data.skipped.len()));
+
+        // Log first few skipped windows for debugging
+        for (i, skip) in callback_data.skipped.iter().take(10).enumerate() {
+            log_to_file(&format!("Skipped[{}]: '{}' reason: {}", i, skip.title, skip.reason));
+        }
+
+        window_info = callback_data.windows;
+    }
+
+    // Now add windows to sources and log each one
+    log_to_file(&format!("Adding {} windows to sources", window_info.len()));
+    for (hwnd_value, title, width, height) in window_info {
+        log_to_file(&format!("Adding window: '{}' ({}x{}) hwnd={}", title, width, height, hwnd_value));
+        sources.push(CaptureSource {
+            id: format!("hwnd:{}", hwnd_value),
+            name: if title.len() > 45 { format!("{}...", &title[..42]) } else { title },
+            source_type: "window".to_string(),
+            width: Some(width),
+            height: Some(height),
+            hwnd: Some(hwnd_value),
+        });
     }
 
     let window_count = sources.iter().filter(|s| s.source_type == "window").count();
