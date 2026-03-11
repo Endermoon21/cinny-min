@@ -5,15 +5,16 @@ import { useLiveKitContext, VoiceParticipant } from './LiveKitContext';
 import * as css from './callView.css';
 
 // Calculate optimal grid layout using brute-force algorithm (Zoom-style)
-// Finds the column count that maximizes total tile area
+// Finds the column count that maximizes total tile area while fitting in container
 function calculateOptimalLayout(
   containerWidth: number,
   containerHeight: number,
   tileCount: number,
-  gap: number = 8,
-  aspectRatio: number = 1 // 1 for square tiles
+  gap: number = 8
 ): { cols: number; rows: number; tileSize: number } {
-  if (tileCount === 0) return { cols: 1, rows: 1, tileSize: 0 };
+  if (tileCount === 0 || containerWidth <= 0 || containerHeight <= 0) {
+    return { cols: 1, rows: 1, tileSize: 100 };
+  }
 
   let bestLayout = { cols: 1, rows: tileCount, tileSize: 0, area: 0 };
 
@@ -21,17 +22,21 @@ function calculateOptimalLayout(
     const rows = Math.ceil(tileCount / cols);
 
     // Calculate available space for tiles (accounting for gaps)
-    const availableWidth = containerWidth - (cols - 1) * gap;
-    const availableHeight = containerHeight - (rows - 1) * gap;
+    const totalGapWidth = (cols - 1) * gap;
+    const totalGapHeight = (rows - 1) * gap;
+    const availableWidth = containerWidth - totalGapWidth;
+    const availableHeight = containerHeight - totalGapHeight;
 
-    // Calculate max tile size that fits
+    if (availableWidth <= 0 || availableHeight <= 0) continue;
+
+    // Calculate max tile size that fits (for square tiles)
     const maxTileWidth = availableWidth / cols;
     const maxTileHeight = availableHeight / rows;
 
-    // For square tiles, use the smaller dimension
-    const tileSize = Math.min(maxTileWidth, maxTileHeight / aspectRatio) * aspectRatio;
+    // Use the smaller dimension to ensure tiles fit
+    const tileSize = Math.floor(Math.min(maxTileWidth, maxTileHeight));
 
-    // Only consider if tiles fit
+    // Calculate total area for this layout
     if (tileSize > 0) {
       const area = tileSize * tileSize * tileCount;
 
@@ -41,7 +46,12 @@ function calculateOptimalLayout(
     }
   }
 
-  return { cols: bestLayout.cols, rows: bestLayout.rows, tileSize: bestLayout.tileSize };
+  // Ensure minimum tile size
+  return {
+    cols: bestLayout.cols,
+    rows: bestLayout.rows,
+    tileSize: Math.max(bestLayout.tileSize, 60)
+  };
 }
 
 interface ParticipantTileProps {

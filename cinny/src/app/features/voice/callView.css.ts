@@ -89,12 +89,13 @@ export const ParticipantGrid = style({
   display: 'flex',
   flexWrap: 'wrap',
   gap: config.space.S200,
-  // Fill the flex container
+  // Fill the flex container but never overflow
   flex: 1,
   minHeight: 0,
   width: '100%',
   padding: config.space.S200,
   boxSizing: 'border-box',
+  overflow: 'hidden',
   // Center the tiles
   alignContent: 'center',
   justifyContent: 'center',
