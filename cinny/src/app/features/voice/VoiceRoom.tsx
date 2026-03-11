@@ -677,7 +677,7 @@ export function VoiceRoom() {
   const {
     currentRoom, participants, isMuted, isCameraEnabled, screenShareInfo, connectionQuality,
     disconnect, toggleMute, toggleCamera, getScreenShareElement, getCameraElement, room,
-    isNativeStreaming, stopStream
+    isNativeStreaming
   } = useLiveKitContext();
 
   const deviceSelection = useDeviceSelection(room);
@@ -690,25 +690,6 @@ export function VoiceRoom() {
   const [showDeviceMenu, setShowDeviceMenu] = useState(false);
   const [showCameraMenu, setShowCameraMenu] = useState(false);
   const [tileDimensions, setTileDimensions] = useState<{ width: number; height: number }>({ width: 300, height: 169 });
-  const [stoppingStream, setStoppingStream] = useState(false);
-
-  // Handle screen share button - stop stream directly or open modal
-  const handleScreenShareClick = useCallback(async () => {
-    if (isStreaming) {
-      // Stop stream directly without modal
-      setStoppingStream(true);
-      try {
-        await stopStream();
-      } catch (e) {
-        console.error("Failed to stop stream:", e);
-      } finally {
-        setStoppingStream(false);
-      }
-    } else {
-      // Open modal to start stream
-      setShowStreamModal(true);
-    }
-  }, [isStreaming, stopStream]);
 
   // Use isNativeStreaming from context
   const isStreaming = isNativeStreaming;
@@ -981,16 +962,10 @@ export function VoiceRoom() {
 
           <button
             className={classNames(css.ControlBtn, { [css.ControlBtnGreen]: isStreaming })}
-            onClick={handleScreenShareClick}
-            disabled={stoppingStream}
-            title={isStreaming ? "Stop Streaming" : "Share Screen"}
+            onClick={() => setShowStreamModal(true)}
+            title={isStreaming ? "End Stream" : "Share Screen"}
           >
-            {stoppingStream ? (
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: "spin 1s linear infinite" }}>
-                <circle cx="12" cy="12" r="10" opacity="0.25" />
-                <path d="M12 2a10 10 0 0 1 10 10" />
-              </svg>
-            ) : isStreaming ? <ScreenShareActiveIcon /> : <ScreenShareIcon />}
+            {isStreaming ? <ScreenShareActiveIcon /> : <ScreenShareIcon />}
           </button>
         </div>
         <button className={css.DisconnectBtn} onClick={disconnect} title="Disconnect">
