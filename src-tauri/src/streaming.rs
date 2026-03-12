@@ -267,23 +267,40 @@ fn capture_monitor_thumbnail(monitor_index: u32, monitor_rect: (i32, i32, i32, i
 }
 
 /// Capture a thumbnail of a window and return as base64-encoded JPEG
+/// Uses screen DC capture at window position (shows what's visible on screen)
 #[cfg(target_os = "windows")]
 fn capture_window_thumbnail(hwnd_value: u64) -> Option<String> {
     use windows::Win32::Foundation::{HWND, RECT};
     use windows::Win32::Graphics::Gdi::{
-        BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject,
+        CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject,
         GetDC, GetDIBits, ReleaseDC, SelectObject, SetStretchBltMode, StretchBlt,
         BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HALFTONE, SRCCOPY,
     };
-    use windows::Win32::UI::WindowsAndMessaging::GetWindowRect;
+    use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
+    use windows::Win32::UI::WindowsAndMessaging::{GetWindowRect, IsIconic};
 
     unsafe {
         let hwnd = HWND(hwnd_value as *mut _);
 
-        // Get window rect
-        let mut rect = RECT::default();
-        if GetWindowRect(hwnd, &mut rect).is_err() {
+        // Skip minimized windows - they can't be captured
+        if IsIconic(hwnd).as_bool() {
             return None;
+        }
+
+        // Try DWM extended frame bounds first (more accurate for modern windows)
+        let mut rect = RECT::default();
+        let dwm_result = DwmGetWindowAttribute(
+            hwnd,
+            DWMWA_EXTENDED_FRAME_BOUNDS,
+            &mut rect as *mut _ as *mut _,
+            std::mem::size_of::<RECT>() as u32,
+        );
+
+        // Fall back to GetWindowRect if DWM fails
+        if dwm_result.is_err() {
+            if GetWindowRect(hwnd, &mut rect).is_err() {
+                return None;
+            }
         }
 
         let src_width = rect.right - rect.left;
@@ -293,23 +310,23 @@ fn capture_window_thumbnail(hwnd_value: u64) -> Option<String> {
             return None;
         }
 
-        // Get window DC (captures the window content directly)
-        let window_dc = GetDC(hwnd);
-        if window_dc.is_invalid() {
+        // Get screen DC (NULL hwnd = entire screen)
+        let screen_dc = GetDC(HWND::default());
+        if screen_dc.is_invalid() {
             return None;
         }
 
         // Create compatible DC for thumbnail
-        let thumb_dc = CreateCompatibleDC(window_dc);
+        let thumb_dc = CreateCompatibleDC(screen_dc);
         if thumb_dc.is_invalid() {
-            ReleaseDC(hwnd, window_dc);
+            ReleaseDC(HWND::default(), screen_dc);
             return None;
         }
 
-        let thumb_bitmap = CreateCompatibleBitmap(window_dc, THUMBNAIL_WIDTH as i32, THUMBNAIL_HEIGHT as i32);
+        let thumb_bitmap = CreateCompatibleBitmap(screen_dc, THUMBNAIL_WIDTH as i32, THUMBNAIL_HEIGHT as i32);
         if thumb_bitmap.is_invalid() {
             let _ = DeleteDC(thumb_dc);
-            ReleaseDC(hwnd, window_dc);
+            ReleaseDC(HWND::default(), screen_dc);
             return None;
         }
 
@@ -318,13 +335,13 @@ fn capture_window_thumbnail(hwnd_value: u64) -> Option<String> {
         // Set stretch mode for better quality
         SetStretchBltMode(thumb_dc, HALFTONE);
 
-        // Stretch blit directly from window DC to thumbnail
+        // Capture from screen at window's position
         let result = StretchBlt(
             thumb_dc,
             0, 0,
             THUMBNAIL_WIDTH as i32, THUMBNAIL_HEIGHT as i32,
-            window_dc,
-            0, 0,
+            screen_dc,
+            rect.left, rect.top,
             src_width, src_height,
             SRCCOPY,
         );
@@ -333,7 +350,7 @@ fn capture_window_thumbnail(hwnd_value: u64) -> Option<String> {
             SelectObject(thumb_dc, old_thumb_bitmap);
             let _ = DeleteObject(thumb_bitmap);
             let _ = DeleteDC(thumb_dc);
-            ReleaseDC(hwnd, window_dc);
+            ReleaseDC(HWND::default(), screen_dc);
             return None;
         }
 
@@ -371,7 +388,7 @@ fn capture_window_thumbnail(hwnd_value: u64) -> Option<String> {
         SelectObject(thumb_dc, old_thumb_bitmap);
         let _ = DeleteObject(thumb_bitmap);
         let _ = DeleteDC(thumb_dc);
-        ReleaseDC(hwnd, window_dc);
+        ReleaseDC(HWND::default(), screen_dc);
 
         if lines == 0 {
             return None;
@@ -491,7 +508,7 @@ fn list_windows_sources_safe() -> Result<Vec<CaptureSource>, String> {
     };
     use windows::Win32::UI::WindowsAndMessaging::{
         EnumWindows, GetWindowRect, GetWindowTextLengthW, GetWindowTextW, IsWindowVisible,
-        GetWindowLongW, GWL_EXSTYLE, WS_EX_TOOLWINDOW,
+        IsIconic, GetWindowLongW, GWL_EXSTYLE, WS_EX_TOOLWINDOW,
     };
 
     let mut sources = Vec::new();
@@ -616,6 +633,11 @@ fn list_windows_sources_safe() -> Result<Vec<CaptureSource>, String> {
             data.total_checked += 1;
 
             if !IsWindowVisible(hwnd).as_bool() {
+                return BOOL(1);
+            }
+
+            // Skip minimized windows - can't capture them
+            if IsIconic(hwnd).as_bool() {
                 return BOOL(1);
             }
 
