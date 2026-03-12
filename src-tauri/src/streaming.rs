@@ -272,10 +272,10 @@ fn capture_window_thumbnail(hwnd_value: u64) -> Option<String> {
     use windows::Win32::Foundation::{HWND, RECT};
     use windows::Win32::Graphics::Gdi::{
         BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject,
-        GetDC, GetDIBits, ReleaseDC, SelectObject, SetStretchBltMode, StretchBlt,
-        BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HALFTONE, SRCCOPY,
+        GetDC, GetDIBits, PrintWindow, ReleaseDC, SelectObject, SetStretchBltMode, StretchBlt,
+        BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HALFTONE, PW_RENDERFULLCONTENT, SRCCOPY,
     };
-    use windows::Win32::UI::WindowsAndMessaging::{GetWindowRect, PrintWindow, PW_RENDERFULLCONTENT};
+    use windows::Win32::UI::WindowsAndMessaging::GetWindowRect;
 
     unsafe {
         let hwnd = HWND(hwnd_value as *mut _);
