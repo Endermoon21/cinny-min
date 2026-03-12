@@ -1,4 +1,4 @@
-import { style, globalStyle } from "@vanilla-extract/css";
+import { style, globalStyle, keyframes } from "@vanilla-extract/css";
 
 // Butter theme colors
 const butter = {
@@ -15,6 +15,20 @@ const butter = {
   warning: "#F0B232",
 };
 
+// Discord-style pop easing (fast start, gentle settle)
+const discordPopEase = 'cubic-bezier(0.16, 1, 0.3, 1)';
+
+// Animation keyframes
+const backdropFadeIn = keyframes({
+  '0%': { opacity: 0 },
+  '100%': { opacity: 1 },
+});
+
+const modalSlideIn = keyframes({
+  '0%': { opacity: 0, transform: 'translateY(8px) scale(0.98)' },
+  '100%': { opacity: 1, transform: 'translateY(0) scale(1)' },
+});
+
 export const Overlay = style({
   position: "fixed",
   inset: 0,
@@ -24,6 +38,7 @@ export const Overlay = style({
   justifyContent: "center",
   zIndex: 10,
   backdropFilter: "blur(4px)",
+  animation: `${backdropFadeIn} 0.15s ease-out`,
 });
 
 export const Modal = style({
@@ -36,6 +51,7 @@ export const Modal = style({
   boxShadow: "0 24px 48px rgba(0, 0, 0, 0.4)",
   display: "flex",
   flexDirection: "column",
+  animation: `${modalSlideIn} 0.2s ${discordPopEase}`,
 });
 
 export const Header = style({

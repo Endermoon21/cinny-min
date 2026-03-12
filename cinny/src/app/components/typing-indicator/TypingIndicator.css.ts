@@ -2,10 +2,15 @@ import { keyframes } from '@vanilla-extract/css';
 import { recipe } from '@vanilla-extract/recipes';
 import { DefaultReset, toRem } from 'folds';
 
+// Enhanced bounce animation with scale for more lively feel
 const TypingDotAnime = keyframes({
-  to: {
-    opacity: '0.4',
-    transform: 'translateY(-15%)',
+  '0%, 100%': {
+    opacity: 0.4,
+    transform: 'translateY(0) scale(0.85)',
+  },
+  '50%': {
+    opacity: 1,
+    transform: 'translateY(-30%) scale(1)',
   },
 });
 
@@ -16,13 +21,12 @@ export const TypingDot = recipe({
       display: 'inline-block',
       backgroundColor: 'currentColor',
       borderRadius: '50%',
-      transform: 'translateY(15%)',
     },
   ],
   variants: {
     animated: {
       true: {
-        animation: `${TypingDotAnime} 0.6s infinite alternate`,
+        animation: `${TypingDotAnime} 0.6s ease-in-out infinite`,
       },
     },
     size: {

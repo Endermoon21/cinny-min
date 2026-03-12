@@ -373,6 +373,9 @@ export const EmptyState = style({
 export const EmptyIcon = style({ opacity: 0.5 });
 export const EmptyText = style({ fontSize: "16px", fontWeight: 500 });
 
+// Discord-style pop easing for animations
+const discordPopEase = 'cubic-bezier(0.16, 1, 0.3, 1)';
+
 // Participant popup styles
 export const ParticipantPopup = style({
   position: "absolute",
@@ -385,6 +388,7 @@ export const ParticipantPopup = style({
   boxShadow: "0 8px 24px rgba(0, 0, 0, 0.6)",
   zIndex: 10,
   border: `1px solid ${color.Surface.ContainerLine}`,
+  animation: `${fadeSlideIn} 0.15s ${discordPopEase}`,
 });
 
 export const PopupHeader = style({

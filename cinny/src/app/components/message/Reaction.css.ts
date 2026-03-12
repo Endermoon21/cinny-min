@@ -1,5 +1,11 @@
-import { createVar, style } from '@vanilla-extract/css';
+import { createVar, style, keyframes } from '@vanilla-extract/css';
 import { DefaultReset, FocusOutline, color, config, toRem } from 'folds';
+
+// Pop-in animation for reactions
+const reactionPopIn = keyframes({
+  '0%': { opacity: 0, transform: 'scale(0.8)' },
+  '100%': { opacity: 1, transform: 'scale(1)' },
+});
 
 const Container = createVar();
 const ContainerHover = createVar();
@@ -21,6 +27,9 @@ export const Reaction = style([
     backgroundColor: Container,
     border: `${config.borderWidth.B300} solid ${ContainerLine}`,
     borderRadius: config.radii.R300,
+    // Pop-in animation and smooth transitions
+    animation: `${reactionPopIn} 0.15s cubic-bezier(0.16, 1, 0.3, 1)`,
+    transition: 'transform 0.1s ease, background-color 0.15s ease, border-color 0.15s ease',
 
     selectors: {
       'button&': {
@@ -42,9 +51,11 @@ export const Reaction = style([
       },
       '&:hover, &:focus-visible': {
         backgroundColor: ContainerHover,
+        transform: 'scale(1.05)',
       },
       '&:active': {
         backgroundColor: ContainerActive,
+        transform: 'scale(0.95)',
       },
       '&[aria-disabled=true], &:disabled': {
         cursor: 'not-allowed',

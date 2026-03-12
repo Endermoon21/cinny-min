@@ -491,6 +491,9 @@ const modalFadeIn = keyframes({
   '100%': { opacity: 1, transform: 'translateY(0)' },
 });
 
+// Discord-style pop easing
+const discordPopEase = 'cubic-bezier(0.16, 1, 0.3, 1)';
+
 export const RNNoiseModal = style({
   // Position is set inline via Portal for proper stacking
   width: '240px',
@@ -499,6 +502,7 @@ export const RNNoiseModal = style({
   boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
   border: `1px solid ${butter.border}`,
   overflow: 'hidden',
+  animation: `${modalFadeIn} 0.15s ${discordPopEase}`,
 });
 
 export const RNNoiseModalHeader = style({
@@ -632,6 +636,13 @@ export const SuppressionSlider = style({
 // ===========================================
 // DEVICE SELECTOR MENU
 // ===========================================
+
+// Staggered menu item animation
+const menuItemSlideIn = keyframes({
+  '0%': { opacity: 0, transform: 'translateX(-6px)' },
+  '100%': { opacity: 1, transform: 'translateX(0)' },
+});
+
 export const DeviceMenu = style({
   minWidth: '220px',
   maxWidth: '320px',
@@ -640,6 +651,8 @@ export const DeviceMenu = style({
   borderRadius: '8px',
   boxShadow: '0 8px 24px rgba(0, 0, 0, 0.6)',
   border: `1px solid ${butter.border}`,
+  animation: `${modalFadeIn} 0.15s ${discordPopEase}`,
+  transformOrigin: 'bottom center',
 });
 
 export const DeviceMenuHeader = style({
@@ -659,8 +672,19 @@ export const DeviceItem = style({
   borderRadius: '4px',
   cursor: 'pointer',
   transition: `background-color 0.1s ${discordEase}`,
+  animation: `${menuItemSlideIn} 0.12s ${discordPopEase} both`,
   ':hover': {
     backgroundColor: 'rgba(255, 251, 222, 0.08)',
+  },
+  selectors: {
+    '&:nth-child(1)': { animationDelay: '0ms' },
+    '&:nth-child(2)': { animationDelay: '25ms' },
+    '&:nth-child(3)': { animationDelay: '50ms' },
+    '&:nth-child(4)': { animationDelay: '75ms' },
+    '&:nth-child(5)': { animationDelay: '100ms' },
+    '&:nth-child(6)': { animationDelay: '125ms' },
+    '&:nth-child(7)': { animationDelay: '150ms' },
+    '&:nth-child(8)': { animationDelay: '175ms' },
   },
 });
 
@@ -766,6 +790,12 @@ globalStyle(`${ProfileItemWithCopy}:hover ${ProfileCopyIcon}`, {
 // ===========================================
 // CONNECTION STATS MODAL (Discord-style)
 // ===========================================
+// Backdrop fade animation for stats modal
+const backdropFadeIn = keyframes({
+  '0%': { opacity: 0 },
+  '100%': { opacity: 1 },
+});
+
 export const StatsModalOverlay = style({
   position: 'fixed',
   inset: 0,
@@ -775,6 +805,7 @@ export const StatsModalOverlay = style({
   justifyContent: 'center',
   zIndex: 10, // Well below app modals (folds uses 9999)
   backdropFilter: 'blur(4px)',
+  animation: `${backdropFadeIn} 0.15s ease-out`,
 });
 
 export const StatsModalContent = style({
@@ -785,6 +816,7 @@ export const StatsModalContent = style({
   boxShadow: '0 16px 48px rgba(0, 0, 0, 0.6)',
   border: `1px solid ${butter.border}`,
   overflow: 'hidden',
+  animation: `${modalFadeIn} 0.2s ${discordPopEase}`,
 });
 
 export const StatsModal = style({

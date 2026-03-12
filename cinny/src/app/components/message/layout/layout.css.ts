@@ -58,10 +58,29 @@ const highlightAnime = keyframes({
     backgroundColor: color.Primary.Container,
   },
 });
+
+// Slide-in animation for new messages
+const messageSlideIn = keyframes({
+  '0%': {
+    opacity: 0,
+    transform: 'translateY(8px)',
+  },
+  '100%': {
+    opacity: 1,
+    transform: 'translateY(0)',
+  },
+});
 const HighlightVariant = styleVariants({
   true: {
     animation: `${highlightAnime} 2000ms ease-in-out`,
     animationIterationCount: 'infinite',
+  },
+});
+
+// Animation for newly added messages
+const NewMessageVariant = styleVariants({
+  true: {
+    animation: `${messageSlideIn} 0.2s cubic-bezier(0.16, 1, 0.3, 1)`,
   },
 });
 
@@ -100,6 +119,7 @@ export const MessageBase = recipe({
     },
     highlight: HighlightVariant,
     selected: SelectedVariant,
+    newMessage: NewMessageVariant,
   },
   defaultVariants: {
     space: '400',

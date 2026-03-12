@@ -1,10 +1,17 @@
-import { style } from '@vanilla-extract/css';
+import { style, keyframes } from '@vanilla-extract/css';
 import { DefaultReset, color, config } from 'folds';
+
+// Fade-in animation for lightbox
+const fadeIn = keyframes({
+  '0%': { opacity: 0 },
+  '100%': { opacity: 1 },
+});
 
 export const ImageViewer = style([
   DefaultReset,
   {
     height: '100%',
+    animation: `${fadeIn} 0.2s ease-out`,
   },
 ]);
 
@@ -37,6 +44,7 @@ export const ImageViewerImg = style([
     maxWidth: '100%',
     maxHeight: '100%',
     backgroundColor: color.Surface.Container,
-    transition: 'transform 100ms linear',
+    // Smooth zoom with Discord-style pop easing
+    transition: 'transform 200ms cubic-bezier(0.16, 1, 0.3, 1)',
   },
 ]);

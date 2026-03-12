@@ -1,5 +1,15 @@
-import { createTheme } from '@vanilla-extract/css';
+import { createTheme, globalStyle } from '@vanilla-extract/css';
 import { color } from 'folds';
+
+// Smooth theme transition for main UI elements
+// Targeting body and main containers for performance
+globalStyle('body', {
+  transition: 'background-color 0.25s ease, color 0.2s ease',
+});
+
+globalStyle('#root', {
+  transition: 'background-color 0.25s ease',
+});
 
 export const silverTheme = createTheme(color, {
   Background: {

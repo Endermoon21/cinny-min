@@ -53,6 +53,7 @@ const NavItemBase = style({
   color: OnContainer,
   outline: 'none',
   minHeight: toRem(36),
+  transition: 'background-color 0.15s ease, transform 0.1s ease',
 
   selectors: {
     '&:hover, &:focus-visible': {
@@ -63,6 +64,7 @@ const NavItemBase = style({
     },
     [`&:has(.${NavLink}:active)`]: {
       backgroundColor: ContainerActive,
+      transform: 'scale(0.99)',
     },
     '&[aria-selected=true]': {
       backgroundColor: ContainerActive,
