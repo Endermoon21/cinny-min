@@ -290,19 +290,31 @@ fn capture_window_thumbnail(hwnd_value: u64) -> Option<String> {
     };
 
     // Resize to thumbnail
-    use image::{ImageBuffer, Rgb, ImageEncoder, imageops::FilterType};
+    use image::{ImageBuffer, Rgba, Rgb, ImageEncoder, imageops::FilterType};
     use image::codecs::jpeg::JpegEncoder;
     use std::io::Cursor;
 
-    // Convert RgbBuf to image
-    let img: ImageBuffer<Rgb<u8>, Vec<u8>> = match ImageBuffer::from_raw(
+    // win-screenshot returns BGRA pixels as Vec<u8>
+    // Convert to RGBA image first
+    let rgba_img: ImageBuffer<Rgba<u8>, Vec<u8>> = match ImageBuffer::from_raw(
         buf.width as u32,
         buf.height as u32,
-        buf.pixels.iter().flat_map(|p| [p.r, p.g, p.b]).collect(),
+        buf.pixels,
     ) {
         Some(img) => img,
         None => return None,
     };
+
+    // Convert BGRA to RGB
+    let img: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::from_fn(
+        buf.width as u32,
+        buf.height as u32,
+        |x, y| {
+            let pixel = rgba_img.get_pixel(x, y);
+            // BGRA -> RGB: swap B and R
+            Rgb([pixel[2], pixel[1], pixel[0]])
+        },
+    );
 
     // Resize to thumbnail size
     let thumb = image::imageops::resize(&img, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT, FilterType::Triangle);
