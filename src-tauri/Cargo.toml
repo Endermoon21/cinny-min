@@ -50,7 +50,7 @@ windows = { version = "0.58", features = [
 ] }
 
 # Reliable window screenshot capture
-win-screenshot = "5"
+win-screenshot = "4"
 
 [features]
 default = ["custom-protocol"]
