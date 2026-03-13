@@ -40,6 +40,9 @@ copy "%GST_ROOT%\bin\srtp2-1.dll" "%TARGET%\"
 copy "%GST_ROOT%\bin\openh264-7.dll" "%TARGET%\"
 copy "%GST_ROOT%\bin\x264-164.dll" "%TARGET%\"
 
+REM Plugin scanner (required for plugin loading)
+copy "%GST_ROOT%\libexec\gstreamer-1.0\gst-plugin-scanner.exe" "%TARGET%\"
+
 echo Copying GStreamer plugins...
 
 REM Plugins (from lib/gstreamer-1.0/)

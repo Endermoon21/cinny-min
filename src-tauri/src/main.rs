@@ -59,6 +59,13 @@ fn setup_gstreamer_paths() {
                 let registry_path = app_dir.join("gstreamer-registry.bin");
                 std::env::set_var("GST_REGISTRY", &registry_path);
                 log::info!("Set GST_REGISTRY to {:?}", registry_path);
+
+                // Set plugin scanner path for bundled GStreamer
+                let scanner_path = app_dir.join("gst-plugin-scanner.exe");
+                if scanner_path.exists() {
+                    std::env::set_var("GST_PLUGIN_SCANNER", &scanner_path);
+                    log::info!("Set GST_PLUGIN_SCANNER to {:?}", scanner_path);
+                }
             }
         }
     }
