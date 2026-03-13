@@ -706,14 +706,8 @@ fn build_video_capture(config: &StreamConfig) -> String {
         // Queue for stability - small buffer for low latency
         video.push_str(" ! queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream");
 
-        // Download from GPU memory to system memory
+        // Download from GPU memory to system memory for whipclientsink
         video.push_str(" ! d3d11download");
-
-        // Add explicit H.264 encoder since whipclientsink auto-discovery fails on clean installs
-        // Use x264enc with low-latency settings optimized for streaming
-        video.push_str(" ! videoconvert");
-        video.push_str(" ! x264enc tune=zerolatency speed-preset=ultrafast bitrate=4000 key-int-max=60");
-        video.push_str(" ! video/x-h264,profile=constrained-baseline,stream-format=byte-stream");
     }
 
     #[cfg(target_os = "linux")]
@@ -780,12 +774,18 @@ fn build_gstreamer_pipeline(config: &StreamConfig) -> String {
     let bitrate_bps = (config.bitrate * 1000) as u64;
     let start_bitrate = bitrate_bps * 3 / 4; // Start at 75% of max for faster ramp
 
-    // Build WHIP sink properties - we provide pre-encoded H.264 now
+    // Build WHIP sink properties with bitrate configuration
     let mut whip_props = format!(
         "whipclientsink name=whip \
+video-caps=\"video/x-h264,profile=constrained-baseline\" \
+start-bitrate={} \
+min-bitrate=500000 \
+max-bitrate={} \
 do-fec=true \
 do-retransmission=true \
 signaller::whip-endpoint=\"{}\"",
+        start_bitrate,
+        bitrate_bps,
         config.whip_url
     );
 

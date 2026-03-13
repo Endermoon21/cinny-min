@@ -73,6 +73,7 @@ copy "%PLUGINS%\gstx264.dll" "%TARGET%\"
 copy "%PLUGINS%\gstopengl.dll" "%TARGET%\"
 copy "%PLUGINS%\gstapp.dll" "%TARGET%\"
 copy "%PLUGINS%\gstrswebrtc.dll" "%TARGET%\"
+copy "%PLUGINS%\gstvideotestsrc.dll" "%TARGET%\"
 
 echo.
 echo Done! GStreamer DLLs copied to %TARGET%
