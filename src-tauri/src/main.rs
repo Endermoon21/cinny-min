@@ -60,12 +60,10 @@ fn setup_gstreamer_paths() {
                 std::env::set_var("GST_REGISTRY", &registry_path);
                 log::info!("Set GST_REGISTRY to {:?}", registry_path);
 
-                // Set plugin scanner path for bundled GStreamer
-                let scanner_path = app_dir.join("gst-plugin-scanner.exe");
-                if scanner_path.exists() {
-                    std::env::set_var("GST_PLUGIN_SCANNER", &scanner_path);
-                    log::info!("Set GST_PLUGIN_SCANNER to {:?}", scanner_path);
-                }
+                // Disable forking for plugin scanning - scan in-process instead
+                // This eliminates the need for gst-plugin-scanner.exe
+                std::env::set_var("GST_REGISTRY_FORK", "no");
+                log::info!("Set GST_REGISTRY_FORK=no for in-process plugin scanning");
             }
         }
     }
