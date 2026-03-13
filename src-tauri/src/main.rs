@@ -11,6 +11,32 @@ mod upload;
 
 use tauri::{utils::config::AppUrl, WindowUrl};
 
+/// Set the DLL search directory on Windows
+/// This is CRITICAL - setting PATH alone is NOT sufficient for Windows
+/// to find transitive DLL dependencies. We must call SetDllDirectoryW.
+#[cfg(target_os = "windows")]
+fn set_dll_directory(path: &std::path::Path) {
+    use std::os::windows::ffi::OsStrExt;
+
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn SetDllDirectoryW(lpPathName: *const u16) -> i32;
+    }
+
+    let wide: Vec<u16> = path.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+    let result = unsafe { SetDllDirectoryW(wide.as_ptr()) };
+    if result != 0 {
+        log::info!("SetDllDirectory succeeded for {:?}", path);
+    } else {
+        log::warn!("SetDllDirectory failed for {:?}", path);
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn set_dll_directory(_path: &std::path::Path) {
+    // No-op on non-Windows platforms
+}
+
 /// Set up GStreamer plugin paths for bundled installation
 fn setup_gstreamer_paths() {
     // Try to find bundled GStreamer DLLs relative to executable
@@ -31,23 +57,17 @@ fn setup_gstreamer_paths() {
                 std::env::set_var("GST_PLUGIN_PATH", &gst_plugins_structured);
                 log::info!("Set GST_PLUGIN_PATH to {:?} (structured)", gst_plugins_structured);
 
-                // Add GStreamer bin to PATH for DLL loading
+                // CRITICAL: Set DLL directory for Windows to find transitive dependencies
                 let gst_bin = gst_root.join("bin");
                 if gst_bin.exists() {
-                    if let Ok(current_path) = std::env::var("PATH") {
-                        let new_path = format!("{};{}", gst_bin.display(), current_path);
-                        std::env::set_var("PATH", &new_path);
-                    }
+                    set_dll_directory(&gst_bin);
                 }
             } else if has_flat {
                 std::env::set_var("GST_PLUGIN_PATH", &gst_plugins_flat);
                 log::info!("Set GST_PLUGIN_PATH to {:?} (flat)", gst_plugins_flat);
 
-                // App dir should already be in PATH, but add it just in case
-                if let Ok(current_path) = std::env::var("PATH") {
-                    let new_path = format!("{};{}", app_dir.display(), current_path);
-                    std::env::set_var("PATH", &new_path);
-                }
+                // CRITICAL: Set DLL directory for Windows to find transitive dependencies
+                set_dll_directory(app_dir);
             } else {
                 log::warn!("Could not find GStreamer plugins in {:?} or {:?}",
                     gst_plugins_structured, gst_plugins_flat);
