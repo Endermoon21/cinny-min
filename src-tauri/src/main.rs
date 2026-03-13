@@ -57,6 +57,27 @@ fn setup_gstreamer_paths() {
             // Otherwise, let GStreamer use system defaults
             if has_structured || has_flat {
                 let registry_path = app_dir.join("gstreamer-registry.bin");
+
+                // Delete old registry to force fresh scan on first run or after updates
+                if registry_path.exists() {
+                    // Check if this is a fresh install by looking for a marker file
+                    let marker_path = app_dir.join(".gst-registry-version");
+                    let current_version = env!("CARGO_PKG_VERSION");
+                    let needs_refresh = if marker_path.exists() {
+                        std::fs::read_to_string(&marker_path)
+                            .map(|v| v.trim() != current_version)
+                            .unwrap_or(true)
+                    } else {
+                        true
+                    };
+
+                    if needs_refresh {
+                        log::info!("Deleting old registry for fresh plugin scan");
+                        let _ = std::fs::remove_file(&registry_path);
+                        let _ = std::fs::write(&marker_path, current_version);
+                    }
+                }
+
                 std::env::set_var("GST_REGISTRY", &registry_path);
                 log::info!("Set GST_REGISTRY to {:?}", registry_path);
 
@@ -64,6 +85,12 @@ fn setup_gstreamer_paths() {
                 // This eliminates the need for gst-plugin-scanner.exe
                 std::env::set_var("GST_REGISTRY_FORK", "no");
                 log::info!("Set GST_REGISTRY_FORK=no for in-process plugin scanning");
+
+                // Enable debug logging for plugin loading issues
+                // Only set if not already set by user
+                if std::env::var("GST_DEBUG").is_err() {
+                    std::env::set_var("GST_DEBUG", "registry:4,plugin:4");
+                }
             }
         }
     }

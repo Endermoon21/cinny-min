@@ -1,7 +1,7 @@
 {
   "package": {
     "productName": "Cinny-Min",
-    "version": "4.12.67"
+    "version": "4.12.68"
   },
   "build": {
     "withGlobalTauri": true,
