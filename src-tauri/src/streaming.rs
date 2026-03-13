@@ -1065,6 +1065,16 @@ pub async fn check_gstreamer(_app: AppHandle) -> Result<GStreamerInfo, String> {
         if let Ok(registry) = std::env::var("GST_REGISTRY") {
             log_to_file(&format!("GST_REGISTRY: {}", registry));
         }
+        if let Ok(fork) = std::env::var("GST_REGISTRY_FORK") {
+            log_to_file(&format!("GST_REGISTRY_FORK: {}", fork));
+        }
+
+        // List all loaded plugins for debugging
+        let registry = gst::Registry::get();
+        let plugins: Vec<String> = registry.plugins().iter()
+            .map(|p| p.plugin_name().to_string())
+            .collect();
+        log_to_file(&format!("Loaded plugins ({}): {:?}", plugins.len(), plugins));
     }
 
     Ok(GStreamerInfo {
