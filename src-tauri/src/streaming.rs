@@ -1043,12 +1043,11 @@ pub async fn check_gstreamer(_app: AppHandle) -> Result<GStreamerInfo, String> {
     let version = format!("{}.{}.{}", major, minor, micro);
     log_to_file(&format!("GStreamer version: {}", version));
 
-    // For now, assume plugins are available if GStreamer itself is available
-    // Plugin detection can be added later if needed
-    let has_whip = true;  // Assume available
+    // Actually check if plugins are loadable from the registry
+    let has_whip = gst::ElementFactory::find("whipclientsink").is_some();
 
     #[cfg(target_os = "windows")]
-    let has_d3d11 = true;  // Assume available on Windows
+    let has_d3d11 = gst::ElementFactory::find("d3d11screencapturesrc").is_some();
 
     #[cfg(not(target_os = "windows"))]
     let has_d3d11 = false;
@@ -1057,6 +1056,16 @@ pub async fn check_gstreamer(_app: AppHandle) -> Result<GStreamerInfo, String> {
         "GStreamer plugins - whipclientsink: {}, d3d11: {}",
         has_whip, has_d3d11
     ));
+
+    // If plugins not found, log additional debug info
+    if !has_whip || !has_d3d11 {
+        if let Ok(plugin_path) = std::env::var("GST_PLUGIN_PATH") {
+            log_to_file(&format!("GST_PLUGIN_PATH: {}", plugin_path));
+        }
+        if let Ok(registry) = std::env::var("GST_REGISTRY") {
+            log_to_file(&format!("GST_REGISTRY: {}", registry));
+        }
+    }
 
     Ok(GStreamerInfo {
         available: true,

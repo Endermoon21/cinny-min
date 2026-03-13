@@ -53,13 +53,13 @@ fn setup_gstreamer_paths() {
                     gst_plugins_structured, gst_plugins_flat);
             }
 
-            // Use app-local registry to avoid conflicts with system GStreamer
-            let registry_path = app_dir.join("gstreamer-registry.bin");
-            std::env::set_var("GST_REGISTRY", &registry_path);
-            log::info!("Set GST_REGISTRY to {:?}", registry_path);
-
-            // Prevent loading system plugins (only use bundled ones)
-            std::env::set_var("GST_PLUGIN_SYSTEM_PATH", "");
+            // Only use app-local registry if we found bundled plugins
+            // Otherwise, let GStreamer use system defaults
+            if has_structured || has_flat {
+                let registry_path = app_dir.join("gstreamer-registry.bin");
+                std::env::set_var("GST_REGISTRY", &registry_path);
+                log::info!("Set GST_REGISTRY to {:?}", registry_path);
+            }
         }
     }
 }
