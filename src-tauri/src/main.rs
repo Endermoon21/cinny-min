@@ -142,6 +142,22 @@ fn main() {
         log::error!("Failed to initialize GStreamer: {}. Streaming will not be available.", e);
     } else {
         log::info!("GStreamer initialized successfully");
+
+        // Force scan plugin directory to ensure all plugins are loaded
+        #[cfg(target_os = "windows")]
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(app_dir) = exe_path.parent() {
+                let registry = gstreamer::Registry::get();
+                let scan_result = registry.scan_path(app_dir);
+                log::info!("Manual plugin scan of {:?}: scanned {} plugins", app_dir, scan_result);
+
+                // Log all loaded plugins for debugging
+                let plugins: Vec<String> = registry.plugins().iter()
+                    .map(|p| p.plugin_name().to_string())
+                    .collect();
+                log::info!("Total plugins loaded: {} - {:?}", plugins.len(), plugins);
+            }
+        }
     }
 
     let port = 44548;
