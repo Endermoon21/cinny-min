@@ -68,6 +68,13 @@ fn setup_gstreamer_paths() {
 
                 // CRITICAL: Set DLL directory for Windows to find transitive dependencies
                 set_dll_directory(app_dir);
+
+                // Also add to PATH as backup for DLL resolution
+                if let Ok(current_path) = std::env::var("PATH") {
+                    let new_path = format!("{};{}", app_dir.display(), current_path);
+                    std::env::set_var("PATH", &new_path);
+                    log::info!("Added app_dir to PATH");
+                }
             } else {
                 log::warn!("Could not find GStreamer plugins in {:?} or {:?}",
                     gst_plugins_structured, gst_plugins_flat);
