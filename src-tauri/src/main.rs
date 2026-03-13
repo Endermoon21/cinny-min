@@ -86,6 +86,12 @@ fn setup_gstreamer_paths() {
                 std::env::set_var("GST_REGISTRY_FORK", "no");
                 log::info!("Set GST_REGISTRY_FORK=no for in-process plugin scanning");
 
+                // CRITICAL: Prevent loading system plugins to avoid version conflicts
+                // Bundled plugins are from GStreamer 1.28.1 - mixing with different
+                // system versions causes failures
+                std::env::set_var("GST_PLUGIN_SYSTEM_PATH", "");
+                log::info!("Set GST_PLUGIN_SYSTEM_PATH='' to isolate bundled plugins");
+
                 // Enable debug logging for plugin loading issues
                 // Only set if not already set by user
                 if std::env::var("GST_DEBUG").is_err() {
