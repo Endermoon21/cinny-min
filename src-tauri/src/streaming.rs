@@ -717,7 +717,9 @@ fn build_video_capture(config: &StreamConfig) -> String {
             bitrate_kbps, config.fps
         ));
         // h264parse ensures proper NAL framing for WebRTC
+        // Explicit caps help whipclientsink detect the encoded format
         video.push_str(" ! h264parse config-interval=-1");
+        video.push_str(" ! video/x-h264,stream-format=byte-stream,alignment=au,profile=constrained-baseline");
     }
 
     #[cfg(target_os = "linux")]
@@ -781,9 +783,11 @@ fn build_audio_capture() -> String {
 
 /// Build GStreamer pipeline string for WHIP streaming
 fn build_gstreamer_pipeline(config: &StreamConfig) -> String {
-    // Build WHIP sink properties - no video-caps since we provide pre-encoded H.264
+    // Build WHIP sink properties
+    // video-caps tells whipclientsink what codec to advertise in SDP
     let mut whip_props = format!(
         "whipclientsink name=whip \
+video-caps=\"video/x-h264,profile=constrained-baseline\" \
 do-fec=true \
 do-retransmission=true \
 signaller::whip-endpoint=\"{}\"",
