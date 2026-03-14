@@ -709,15 +709,8 @@ fn build_video_capture(config: &StreamConfig) -> String {
         // Download from GPU memory to system memory
         video.push_str(" ! d3d11download");
 
-        // Explicit H.264 encoding with x264 (whipclientsink internal encoding not working with bundled plugins)
-        let bitrate_kbps = config.bitrate; // Already in kbps
-        video.push_str(" ! videoconvert");
-        video.push_str(&format!(
-            " ! x264enc tune=zerolatency speed-preset=ultrafast bitrate={} key-int-max={}",
-            bitrate_kbps, config.fps
-        ));
-        // h264parse ensures proper NAL framing for WebRTC
-        video.push_str(" ! h264parse config-interval=-1");
+        // Convert to raw video format for whipclientsink's internal encoder
+        video.push_str(" ! videoconvert ! video/x-raw,format=I420");
     }
 
     #[cfg(target_os = "linux")]
@@ -782,12 +775,18 @@ fn build_audio_capture() -> String {
 /// Build GStreamer pipeline string for WHIP streaming
 fn build_gstreamer_pipeline(config: &StreamConfig) -> String {
     // Build WHIP sink properties
-    // No video-caps - let whipclientsink auto-detect the pre-encoded H.264 stream
+    // video-caps tells whipclientsink to use openh264 encoder (simpler dependencies than x264)
     let mut whip_props = format!(
         "whipclientsink name=whip \
+video-caps=\"video/x-h264,profile=baseline\" \
+start-bitrate={} \
+min-bitrate=500000 \
+max-bitrate={} \
 do-fec=true \
 do-retransmission=true \
 signaller::whip-endpoint=\"{}\"",
+        config.bitrate * 1000, // Convert kbps to bps
+        config.bitrate * 1000 * 2,
         config.whip_url
     );
 
