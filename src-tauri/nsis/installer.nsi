@@ -1,9 +1,4 @@
 Unicode true
-
-; Constants for environment variable broadcasting
-!define HWND_BROADCAST 0xFFFF
-!define WM_SETTINGCHANGE 0x001A
-
 ; Set the compression algorithm. Default is LZMA.
 !if "{{compression}}" == ""
   SetCompressor /SOLID lzma
