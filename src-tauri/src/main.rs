@@ -119,6 +119,8 @@ fn main() {
             streaming::start_stream,
             streaming::stop_stream,
             streaming::get_stream_status,
+            streaming::get_streaming_log,
+            streaming::clear_streaming_log,
             streaming::check_gstreamer,
             upload::native_upload_file,
             upload::cancel_native_upload,

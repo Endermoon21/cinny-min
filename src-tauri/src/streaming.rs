@@ -100,6 +100,9 @@ impl Drop for StreamingState {
 
 /// Log to debug file in user's temp directory
 fn log_to_file(message: &str) {
+    // Always log to console
+    log::info!("[Stream] {}", message);
+
     #[cfg(target_os = "windows")]
     {
         // Use TEMP directory which exists for all users
@@ -112,17 +115,19 @@ fn log_to_file(message: &str) {
             .append(true)
             .open(&log_file)
         {
-            let timestamp = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(0);
+            let timestamp = chrono_timestamp();
             let _ = writeln!(file, "[{}] {}", timestamp, message);
         }
     }
-    #[cfg(not(target_os = "windows"))]
-    {
-        log::info!("{}", message);
-    }
+}
+
+/// Get formatted timestamp
+fn chrono_timestamp() -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    format!("{}", now)
 }
 
 /// Thumbnail size (width x height)
@@ -823,27 +828,49 @@ pub async fn start_stream(
     app: AppHandle,
     config: StreamConfig,
 ) -> Result<(), String> {
+    log_to_file("=== START_STREAM DEBUG ===");
+    log_to_file(&format!("Source ID: {}", config.source_id));
+    log_to_file(&format!("WHIP URL: {}", config.whip_url));
+    log_to_file(&format!("Resolution: {}x{} @ {}fps", config.width, config.height, config.fps));
+    log_to_file(&format!("Bitrate: {} kbps", config.bitrate));
+    log_to_file(&format!("Audio enabled: {}", config.audio_enabled));
+    log_to_file(&format!("Bearer token: {}", if config.bearer_token.is_some() { "present" } else { "none" }));
+    log_to_file(&format!("TURN server: {}", config.turn_server.as_ref().unwrap_or(&"none".to_string())));
+
     let state = app.state::<StreamingState>();
 
     // Check if already streaming
     {
         let pipeline = state.pipeline.lock().unwrap();
         if pipeline.is_some() {
+            log_to_file("ERROR: Already streaming");
             return Err("Already streaming".to_string());
         }
     }
 
+    // Check GStreamer initialization
+    log_to_file("Checking GStreamer initialization...");
+    if !gst::init().is_ok() {
+        log_to_file("WARNING: GStreamer may not be fully initialized");
+    } else {
+        log_to_file(&format!("GStreamer version: {}", gst::version_string()));
+    }
+
     // Build pipeline string
     let pipeline_str = build_gstreamer_pipeline(&config);
-    log_to_file(&format!("GStreamer pipeline: {}", pipeline_str));
+    log_to_file("=== PIPELINE STRING ===");
+    log_to_file(&pipeline_str);
+    log_to_file("=== END PIPELINE STRING ===");
 
     // Parse and create pipeline using gst_parse_launch
+    log_to_file("Parsing pipeline string...");
     let pipeline = gst::parse::launch(&pipeline_str)
         .map_err(|e| {
-            let msg = format!("Failed to parse pipeline: {}", e);
+            let msg = format!("PARSE ERROR: {} (pipeline: {})", e, pipeline_str);
             log_to_file(&msg);
             msg
         })?;
+    log_to_file("Pipeline parsed successfully");
 
     // Cast to Pipeline
     let pipeline: gst::Pipeline = pipeline.downcast()
@@ -853,7 +880,15 @@ pub async fn start_stream(
             msg.to_string()
         })?;
 
+    // List all elements in the pipeline for debugging
+    log_to_file("=== PIPELINE ELEMENTS ===");
+    for element in pipeline.iterate_elements().into_iter().flatten() {
+        log_to_file(&format!("  Element: {} ({})", element.name(), element.factory().map(|f| f.name().to_string()).unwrap_or_else(|| "no factory".to_string())));
+    }
+    log_to_file("=== END ELEMENTS ===");
+
     // Set to playing state
+    log_to_file("Setting pipeline to PLAYING state...");
     pipeline.set_state(gst::State::Playing)
         .map_err(|e| {
             let msg = format!("Failed to start pipeline: {:?}", e);
@@ -861,7 +896,7 @@ pub async fn start_stream(
             msg
         })?;
 
-    log_to_file("GStreamer pipeline started successfully");
+    log_to_file("Pipeline state change to PLAYING initiated (async)");
 
     // Get bus for message handling
     let bus = pipeline.bus().ok_or("Failed to get pipeline bus")?;
@@ -891,21 +926,38 @@ pub async fn start_stream(
     // Spawn message handler thread
     let shared = state.shared.clone();
     std::thread::spawn(move || {
+        log_to_file("Message handler thread started");
+        let mut message_count = 0u32;
+
         loop {
             let msg = match bus.timed_pop(gst::ClockTime::from_seconds(1)) {
                 Some(m) => m,
-                None => continue,
+                None => {
+                    // Log every 10 seconds to show we're still alive
+                    if let Ok(running) = shared.is_running.lock() {
+                        if *running {
+                            message_count += 1;
+                            if message_count % 10 == 0 {
+                                log_to_file(&format!("Pipeline still running ({}s)", message_count));
+                            }
+                        }
+                    }
+                    continue;
+                },
             };
 
             use gst::MessageView;
+            let src_name = msg.src().map(|s| s.name().to_string()).unwrap_or_else(|| "unknown".to_string());
+
             match msg.view() {
                 MessageView::Eos(..) => {
-                    log_to_file("Pipeline reached EOS");
+                    log_to_file(&format!("EOS from {}", src_name));
                     break;
                 }
                 MessageView::Error(err) => {
                     let error_msg = format!(
-                        "GStreamer error: {} ({:?})",
+                        "ERROR from {}: {} (debug: {:?})",
+                        src_name,
                         err.error(),
                         err.debug()
                     );
@@ -917,10 +969,53 @@ pub async fn start_stream(
                 }
                 MessageView::Warning(warning) => {
                     log_to_file(&format!(
-                        "GStreamer warning: {} ({:?})",
+                        "WARNING from {}: {} (debug: {:?})",
+                        src_name,
                         warning.error(),
                         warning.debug()
                     ));
+                }
+                MessageView::StateChanged(state_changed) => {
+                    // Only log state changes for the pipeline itself
+                    if msg.src().map(|s| s.type_().name() == "GstPipeline").unwrap_or(false) {
+                        log_to_file(&format!(
+                            "STATE CHANGED: {} -> {} (pending: {:?})",
+                            state_changed.old().to_str(),
+                            state_changed.current().to_str(),
+                            state_changed.pending()
+                        ));
+                    }
+                }
+                MessageView::StreamStatus(status) => {
+                    log_to_file(&format!(
+                        "STREAM STATUS from {}: {:?}",
+                        src_name,
+                        status.type_()
+                    ));
+                }
+                MessageView::Element(element) => {
+                    // Log element-specific messages (like WHIP connection status)
+                    if let Some(structure) = element.structure() {
+                        log_to_file(&format!(
+                            "ELEMENT MSG from {}: {}",
+                            src_name,
+                            structure.name()
+                        ));
+                    }
+                }
+                MessageView::Latency(..) => {
+                    log_to_file(&format!("LATENCY update from {}", src_name));
+                }
+                MessageView::AsyncDone(..) => {
+                    log_to_file(&format!("ASYNC DONE from {} - pipeline is fully playing", src_name));
+                }
+                MessageView::NewClock(clock) => {
+                    if let Some(c) = clock.clock() {
+                        log_to_file(&format!("NEW CLOCK: {}", c.name()));
+                    }
+                }
+                MessageView::Qos(..) => {
+                    // QoS messages can be spammy, only log occasionally
                 }
                 _ => {}
             }
@@ -928,6 +1023,7 @@ pub async fn start_stream(
             // Check if we should stop
             if let Ok(running) = shared.is_running.lock() {
                 if !*running {
+                    log_to_file("Stop requested, exiting message loop");
                     break;
                 }
             }
@@ -937,7 +1033,7 @@ pub async fn start_stream(
         if let Ok(mut running) = shared.is_running.lock() {
             *running = false;
         }
-        log_to_file("GStreamer message loop exited");
+        log_to_file("=== MESSAGE HANDLER THREAD EXITED ===");
     });
 
     Ok(())
@@ -1028,6 +1124,58 @@ fn get_elapsed_seconds(start_time: &Option<std::time::Instant>) -> u64 {
     match start_time {
         Some(t) => t.elapsed().as_secs(),
         None => 0,
+    }
+}
+
+/// Get streaming debug log (last N lines)
+#[tauri::command]
+pub async fn get_streaming_log(_app: AppHandle, lines: Option<u32>) -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let log_path = std::env::var("TEMP")
+            .unwrap_or_else(|_| "C:\\Windows\\Temp".to_string());
+        let log_file = format!("{}\\cinny_streaming.log", log_path);
+
+        match std::fs::read_to_string(&log_file) {
+            Ok(content) => {
+                let max_lines = lines.unwrap_or(100) as usize;
+                let all_lines: Vec<&str> = content.lines().collect();
+                let start = if all_lines.len() > max_lines {
+                    all_lines.len() - max_lines
+                } else {
+                    0
+                };
+                Ok(all_lines[start..].join("\n"))
+            }
+            Err(e) => Err(format!("Failed to read log: {}", e))
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok("Log file only available on Windows".to_string())
+    }
+}
+
+/// Clear streaming debug log
+#[tauri::command]
+pub async fn clear_streaming_log(_app: AppHandle) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        let log_path = std::env::var("TEMP")
+            .unwrap_or_else(|_| "C:\\Windows\\Temp".to_string());
+        let log_file = format!("{}\\cinny_streaming.log", log_path);
+
+        match std::fs::write(&log_file, "") {
+            Ok(_) => {
+                log_to_file("=== LOG CLEARED ===");
+                Ok(())
+            }
+            Err(e) => Err(format!("Failed to clear log: {}", e))
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(())
     }
 }
 

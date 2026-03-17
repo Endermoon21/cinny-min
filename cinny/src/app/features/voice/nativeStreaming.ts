@@ -155,6 +155,27 @@ export async function checkGStreamer(): Promise<GStreamerInfo> {
 }
 
 /**
+ * Get streaming debug log (last N lines)
+ * Logs are stored in %TEMP%\cinny_streaming.log on Windows
+ */
+export async function getStreamingLog(lines?: number): Promise<string> {
+  if (!isTauri) {
+    return 'Streaming log only available in Tauri app';
+  }
+  return invoke('get_streaming_log', { lines: lines || 100 });
+}
+
+/**
+ * Clear streaming debug log
+ */
+export async function clearStreamingLog(): Promise<void> {
+  if (!isTauri) {
+    return;
+  }
+  return invoke('clear_streaming_log');
+}
+
+/**
  * Get best available encoder for FFmpeg
  */
 export function getBestEncoder(info: FFmpegInfo): 'nvenc' | 'qsv' | 'amf' | 'mf' | 'x264' {
