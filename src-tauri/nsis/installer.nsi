@@ -502,35 +502,41 @@ Section GStreamer
   ; Check if GStreamer is already installed
   IfFileExists "$PROGRAMFILES64\gstreamer\1.0\msvc_x86_64\bin\gstreamer-1.0-0.dll" gstreamer_done
 
-  ; Download GStreamer installer
-  DetailPrint "Downloading GStreamer runtime..."
+  ; Download GStreamer installer using PowerShell (much faster than NSISdl)
+  DetailPrint "Downloading GStreamer runtime (~500MB)..."
   Delete "$TEMP\gstreamer-setup.exe"
-  NSISdl::download "https://cinny-updates.endershare.org/gstreamer-1.0-msvc-x86_64-1.28.1.exe" "$TEMP\gstreamer-setup.exe"
+
+  ; Use PowerShell with progress preference disabled for maximum speed
+  nsExec::ExecToLog 'powershell -ExecutionPolicy Bypass -Command "$ProgressPreference = \"SilentlyContinue\"; Invoke-WebRequest -Uri \"https://cinny-updates.endershare.org/gstreamer-1.0-msvc-x86_64-1.28.1.exe\" -OutFile \"$env:TEMP\gstreamer-setup.exe\" -UseBasicParsing"'
   Pop $0
-  ${If} $0 == "success"
-    DetailPrint "Installing GStreamer runtime..."
-    ; Run GStreamer installer silently with default options
-    ExecWait '"$TEMP\gstreamer-setup.exe" /S' $1
-    ${If} $1 == 0
-      DetailPrint "GStreamer installed successfully"
-      ; Set environment variables
-      WriteRegExpandStr HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" "GST_PLUGIN_PATH" "$PROGRAMFILES64\gstreamer\1.0\msvc_x86_64\lib\gstreamer-1.0"
-      ; Add GStreamer bin to PATH
-      ReadRegStr $0 HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" "Path"
-      StrCpy $1 "$PROGRAMFILES64\gstreamer\1.0\msvc_x86_64\bin"
-      ${StrLoc} $2 $0 $1 ">"
-      ${If} $2 == ""
-        WriteRegExpandStr HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" "Path" "$0;$1"
-      ${EndIf}
-      ; Broadcast environment change
-      SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment" /TIMEOUT=5000
-    ${Else}
-      DetailPrint "GStreamer installation failed (exit code: $1)"
+
+  ; Check if download succeeded
+  IfFileExists "$TEMP\gstreamer-setup.exe" 0 gstreamer_download_failed
+
+  DetailPrint "Installing GStreamer runtime..."
+  ; Run GStreamer installer silently with default options
+  ExecWait '"$TEMP\gstreamer-setup.exe" /S' $1
+  ${If} $1 == 0
+    DetailPrint "GStreamer installed successfully"
+    ; Set environment variables
+    WriteRegExpandStr HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" "GST_PLUGIN_PATH" "$PROGRAMFILES64\gstreamer\1.0\msvc_x86_64\lib\gstreamer-1.0"
+    ; Add GStreamer bin to PATH
+    ReadRegStr $0 HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" "Path"
+    StrCpy $1 "$PROGRAMFILES64\gstreamer\1.0\msvc_x86_64\bin"
+    ${StrLoc} $2 $0 $1 ">"
+    ${If} $2 == ""
+      WriteRegExpandStr HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" "Path" "$0;$1"
     ${EndIf}
-    Delete "$TEMP\gstreamer-setup.exe"
+    ; Broadcast environment change
+    SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment" /TIMEOUT=5000
   ${Else}
-    DetailPrint "Failed to download GStreamer: $0"
+    DetailPrint "GStreamer installation failed (exit code: $1)"
   ${EndIf}
+  Delete "$TEMP\gstreamer-setup.exe"
+  Goto gstreamer_done
+
+  gstreamer_download_failed:
+    DetailPrint "Failed to download GStreamer"
 
   gstreamer_done:
 SectionEnd
