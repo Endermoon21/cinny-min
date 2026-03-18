@@ -502,18 +502,20 @@ Section GStreamer
   ; Check if GStreamer is already installed
   IfFileExists "$PROGRAMFILES64\gstreamer\1.0\msvc_x86_64\bin\gstreamer-1.0-0.dll" gstreamer_done
 
-  ; Download GStreamer installer using PowerShell (much faster than NSISdl)
-  DetailPrint "Downloading GStreamer runtime (~500MB)..."
-  Delete "$TEMP\gstreamer-setup.exe"
+  ; Extract bundled GStreamer installer (embedded in this installer)
+  DetailPrint "Extracting GStreamer runtime..."
+  SetOutPath "$TEMP"
+  File "gstreamer-setup.exe"
 
-  ; Use PowerShell with progress preference disabled for maximum speed
-  nsExec::ExecToLog 'powershell -ExecutionPolicy Bypass -Command "$ProgressPreference = \"SilentlyContinue\"; Invoke-WebRequest -Uri \"https://cinny-updates.endershare.org/gstreamer-1.0-msvc-x86_64-1.28.1.exe\" -OutFile \"$env:TEMP\gstreamer-setup.exe\" -UseBasicParsing"'
-  Pop $0
+  IfFileExists "$TEMP\gstreamer-setup.exe" gstreamer_install
 
-  ; Check if download succeeded
-  IfFileExists "$TEMP\gstreamer-setup.exe" 0 gstreamer_download_failed
+  ; Extraction failed - shouldn't happen but handle it
+  DetailPrint "ERROR: Failed to extract GStreamer installer"
+  MessageBox MB_OK|MB_ICONEXCLAMATION "Could not extract GStreamer installer. Streaming features will not work.$\n$\nPlease manually install GStreamer from:$\nhttps://cinny-updates.endershare.org/gstreamer-1.0-msvc-x86_64-1.28.1.exe"
+  Goto gstreamer_done
 
-  DetailPrint "Installing GStreamer runtime..."
+  gstreamer_install:
+  DetailPrint "Installing GStreamer runtime (this may take a minute)..."
   ; Run GStreamer installer silently with default options
   ExecWait '"$TEMP\gstreamer-setup.exe" /S' $1
   ${If} $1 == 0
@@ -531,12 +533,9 @@ Section GStreamer
     SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment" /TIMEOUT=5000
   ${Else}
     DetailPrint "GStreamer installation failed (exit code: $1)"
+    MessageBox MB_OK|MB_ICONEXCLAMATION "GStreamer installation failed. Streaming features may not work.$\n$\nYou can manually install GStreamer from:$\nhttps://cinny-updates.endershare.org/gstreamer-1.0-msvc-x86_64-1.28.1.exe"
   ${EndIf}
   Delete "$TEMP\gstreamer-setup.exe"
-  Goto gstreamer_done
-
-  gstreamer_download_failed:
-    DetailPrint "Failed to download GStreamer"
 
   gstreamer_done:
 SectionEnd
