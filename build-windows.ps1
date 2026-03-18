@@ -40,6 +40,15 @@ Write-Host "`nSetting GStreamer environment..." -ForegroundColor Cyan
 $env:PATH = "C:\Program Files\gstreamer\1.0\msvc_x86_64\bin;$env:PATH"
 $env:PKG_CONFIG_PATH = "C:\Program Files\gstreamer\1.0\msvc_x86_64\lib\pkgconfig"
 
+# Copy GStreamer installer to where NSIS can find it during bundle
+# NSIS runs from src-tauri\target\release\nsis\x64\ so we copy there
+$nsisDir = "src-tauri\target\release\nsis\x64"
+if (-not (Test-Path $nsisDir)) {
+    New-Item -ItemType Directory -Path $nsisDir -Force | Out-Null
+}
+Copy-Item $GSTREAMER_FILE "$nsisDir\gstreamer-setup.exe" -Force
+Write-Host "Copied GStreamer installer to NSIS build directory" -ForegroundColor Green
+
 # Build Tauri app
 Write-Host "`nBuilding Tauri application..." -ForegroundColor Cyan
 npx tauri build

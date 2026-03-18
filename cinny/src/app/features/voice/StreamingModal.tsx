@@ -47,6 +47,45 @@ function extractTurnUrl(iceServers?: IceServer[]): string | undefined {
   }
   return undefined;
 }
+
+/**
+ * Check if we can reach the local network ingress
+ * Returns true if on local network (10.0.0.x), false otherwise
+ */
+async function isOnLocalNetwork(): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 1000);
+
+    const response = await fetch('http://10.0.0.100:8085/', {
+      method: 'HEAD',
+      mode: 'no-cors',
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    // no-cors mode always returns opaque response, but if it didn't throw, we reached it
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Select the best WHIP URL based on network location
+ * Local users get direct connection, external users go through Oracle VM
+ */
+async function selectWhipUrl(ingress: WhipIngressInfo): Promise<string> {
+  // If we have a local URL and can reach it, use it for lower latency
+  if (ingress.whipLocalUrl) {
+    const isLocal = await isOnLocalNetwork();
+    if (isLocal) {
+      console.log('[Streaming] Using local WHIP URL (lower latency)');
+      return ingress.whipLocalUrl;
+    }
+  }
+  console.log('[Streaming] Using public WHIP URL (Oracle VM)');
+  return ingress.whipUrl;
+}
 import { Track } from "livekit-client";
 import * as css from "./streamingModal.css";
 
@@ -319,9 +358,12 @@ export function StreamingModal({ onClose }: StreamingModalProps) {
       const turnServer = extractTurnUrl(ingress.iceServers);
       console.log('[Streaming] Using TURN:', turnServer ? 'Cloudflare' : 'none');
 
+      // Select best WHIP URL based on network location
+      const whipUrl = await selectWhipUrl(ingress);
+
       const config: NativeStreamConfig = {
         source_id: selectedSource.id,
-        whip_url: ingress.whipUrl,
+        whip_url: whipUrl,
         width: settings.width,
         height: settings.height,
         fps: settings.fps,
