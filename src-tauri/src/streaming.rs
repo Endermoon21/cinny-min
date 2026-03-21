@@ -726,10 +726,9 @@ fn build_video_capture(config: &StreamConfig) -> String {
             if gst::ElementFactory::find("amfh264enc").is_some() {
                 log_to_file("Using AMD AMF encoder (amfh264enc) with WebRTC settings");
                 video.push_str(&format!(
-                    " ! amfh264enc usage=ultra-low-latency rate-control=cbr bitrate={} cabac=false aud=true",
+                    " ! amfh264enc usage=ultra-low-latency rate-control=cbr bitrate={} cabac=false",
                     config.bitrate
                 ));
-                video.push_str(" ! video/x-h264,profile=constrained-baseline,stream-format=byte-stream");
                 video.push_str(" ! h264parse config-interval=-1");
             }
             // Try Intel QuickSync
@@ -739,7 +738,6 @@ fn build_video_capture(config: &StreamConfig) -> String {
                     " ! qsvh264enc low-latency=true bitrate={}",
                     config.bitrate
                 ));
-                video.push_str(" ! video/x-h264,profile=constrained-baseline,stream-format=byte-stream");
                 video.push_str(" ! h264parse config-interval=-1");
             }
             // Software fallback
@@ -749,7 +747,6 @@ fn build_video_capture(config: &StreamConfig) -> String {
                     " ! x264enc tune=zerolatency speed-preset=ultrafast bitrate={} key-int-max=60",
                     config.bitrate
                 ));
-                video.push_str(" ! video/x-h264,profile=constrained-baseline,stream-format=byte-stream");
                 video.push_str(" ! h264parse config-interval=-1");
             }
             else {
