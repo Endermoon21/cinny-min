@@ -39,7 +39,7 @@ function getDisplayName(identity: string, fallbackName: string): string {
 export function VoiceChannelSection() {
   const mx = useMatrixClient();
   const { isConnected, currentRoom, participants, connect, setShowVoiceView } = useLiveKitContext();
-  const { formatted: formattedDuration } = useCallDuration(isConnected);
+  const { formatted: formattedDuration } = useCallDuration();
   const [rooms, setRooms] = useState<VoiceRoom[]>([]);
   const [roomParticipants, setRoomParticipants] = useState<Record<string, Array<{ identity: string; name: string }>>>({});
   const [profileCache, setProfileCache] = useState<Record<string, { avatarUrl?: string; displayName: string }>>({});

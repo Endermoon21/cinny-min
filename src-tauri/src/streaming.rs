@@ -726,8 +726,8 @@ fn build_video_capture(config: &StreamConfig) -> String {
             config.width, config.height
         ));
 
-        // Queue for stability - small buffer for low latency
-        video.push_str(" ! queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream");
+        // Queue for stability - larger buffer prevents frame drops at high quality
+        video.push_str(" ! queue max-size-buffers=5 max-size-time=100000000 max-size-bytes=0 leaky=downstream");
 
         // Download from GPU memory to system memory
         video.push_str(" ! d3d11download");
@@ -765,6 +765,8 @@ fn build_video_capture(config: &StreamConfig) -> String {
                 }
                 _ => unreachable!()
             }
+            // Buffer after encoder to smooth out timing variations
+            video.push_str(" ! queue max-size-buffers=3 max-size-time=50000000 max-size-bytes=0");
             video.push_str(" ! h264parse config-interval=-1");
         } else if gst::ElementFactory::find("amfh264enc").is_some() {
             // AMD AMF encoder with quality-based settings
@@ -796,6 +798,8 @@ fn build_video_capture(config: &StreamConfig) -> String {
                     );
                 }
             }
+            // Buffer after encoder to smooth out timing variations
+            video.push_str(" ! queue max-size-buffers=3 max-size-time=50000000 max-size-bytes=0");
             video.push_str(" ! h264parse config-interval=-1");
         } else if gst::ElementFactory::find("qsvh264enc").is_some() {
             // Intel QuickSync encoder
@@ -823,6 +827,8 @@ fn build_video_capture(config: &StreamConfig) -> String {
                     ));
                 }
             }
+            // Buffer after encoder to smooth out timing variations
+            video.push_str(" ! queue max-size-buffers=3 max-size-time=50000000 max-size-bytes=0");
             video.push_str(" ! h264parse config-interval=-1");
         } else if gst::ElementFactory::find("x264enc").is_some() {
             // Software fallback with quality options
@@ -853,6 +859,8 @@ fn build_video_capture(config: &StreamConfig) -> String {
                     );
                 }
             }
+            // Buffer after encoder to smooth out timing variations
+            video.push_str(" ! queue max-size-buffers=3 max-size-time=50000000 max-size-bytes=0");
             video.push_str(" ! h264parse config-interval=-1");
         } else {
             log_to_file("WARNING: No H.264 encoder found! Stream may fail.");

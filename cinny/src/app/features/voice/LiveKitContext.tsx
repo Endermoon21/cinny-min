@@ -76,6 +76,7 @@ interface LiveKitContextValue {
   setIsNativeStreaming: (streaming: boolean) => void;
   currentIngressId: string | null;
   setCurrentIngressId: (id: string | null) => void;
+  callStartTime: number | null;
 }
 
 const LiveKitContext = createContext<LiveKitContextValue | null>(null);
@@ -97,6 +98,7 @@ export function LiveKitProvider({ children }: { children: ReactNode }) {
   const [isCameraEnabled, setIsCameraEnabled] = useState(false);
   const [isNativeStreaming, setIsNativeStreaming] = useState(false);
   const [currentIngressId, setCurrentIngressId] = useState<string | null>(null);
+  const [callStartTime, setCallStartTime] = useState<number | null>(null);
   const roomRef = useRef<Room | null>(null);
   const ingressIdRef = useRef<string | null>(null);
 
@@ -506,7 +508,7 @@ export function LiveKitProvider({ children }: { children: ReactNode }) {
       room.on(RoomEvent.Disconnected, (reason) => {
         console.log("[LiveKit DEBUG] Disconnected, reason:", reason);
         screenSharesMapRef.current.clear(); screenShareVideoRefs.current.clear();
-        setIsConnected(false); setCurrentRoom(null); setParticipants([]); setScreenShareInfo(null); setScreenShares([]); setShowVoiceView(false);
+        setIsConnected(false); setCurrentRoom(null); setParticipants([]); setScreenShareInfo(null); setScreenShares([]); setShowVoiceView(false); setCallStartTime(null);
       });
 
       const iceServers = data.iceServers && data.iceServers.length > 0
@@ -547,7 +549,7 @@ export function LiveKitProvider({ children }: { children: ReactNode }) {
         console.error("[LiveKit DEBUG] room.connect() failed:", connectErr);
         throw connectErr;
       }
-      setIsConnected(true); setCurrentRoom(roomName); setIsMuted(true); setShowVoiceView(true); updateParticipants();
+      setIsConnected(true); setCurrentRoom(roomName); setIsMuted(true); setShowVoiceView(true); setCallStartTime(Date.now()); updateParticipants();
       try { await room.localParticipant.setMicrophoneEnabled(true); setIsMuted(false); } catch (micErr) { console.error("[LiveKit] Mic error:", micErr); }
       const audioTracks = Array.from(room.localParticipant.audioTrackPublications.values());
       if (audioTracks.length > 0 && audioTracks[0].track) setMicrophoneTrack(audioTracks[0].track);
@@ -594,7 +596,7 @@ export function LiveKitProvider({ children }: { children: ReactNode }) {
     screenShareVideoRefs.current.forEach((el) => el.remove());
     screenShareVideoRefs.current.clear();
     screenSharesMapRef.current.clear();
-    setIsConnected(false); setCurrentRoom(null); setParticipants([]); setIsMuted(true); setIsDeafened(false); setIsCameraEnabled(false); setScreenShareInfo(null); setScreenShares([]); setShowVoiceView(false);
+    setIsConnected(false); setCurrentRoom(null); setParticipants([]); setIsMuted(true); setIsDeafened(false); setIsCameraEnabled(false); setScreenShareInfo(null); setScreenShares([]); setShowVoiceView(false); setCallStartTime(null);
   }, [stopDiagnostics, isNativeStreaming, currentIngressId]);
 
   const toggleMute = useCallback(async () => {
@@ -761,6 +763,7 @@ export function LiveKitProvider({ children }: { children: ReactNode }) {
       setIsNativeStreaming,
       currentIngressId,
       setCurrentIngressId,
+      callStartTime,
     }}>
       {children}
     </LiveKitContext.Provider>

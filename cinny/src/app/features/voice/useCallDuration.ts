@@ -1,59 +1,49 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { useLiveKitContext } from './LiveKitContext';
 
 interface UseCallDurationReturn {
   duration: number;        // Total seconds
   formatted: string;       // MM:SS or HH:MM:SS
   startTime: number | null;
-  reset: () => void;
 }
 
 function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;
-  
+
   const pad = (n: number) => n.toString().padStart(2, '0');
-  
+
   if (hours > 0) {
     return `${pad(hours)}:${pad(minutes)}:${pad(secs)}`;
   }
   return `${pad(minutes)}:${pad(secs)}`;
 }
 
-export function useCallDuration(isConnected: boolean): UseCallDurationReturn {
-  const [startTime, setStartTime] = useState<number | null>(null);
+export function useCallDuration(): UseCallDurationReturn {
+  const { callStartTime } = useLiveKitContext();
   const [duration, setDuration] = useState<number>(0);
 
-  // Start timer when connected
+  // Update duration every second based on global start time
   useEffect(() => {
-    if (isConnected && !startTime) {
-      setStartTime(Date.now());
-    } else if (!isConnected && startTime) {
-      setStartTime(null);
+    if (!callStartTime) {
       setDuration(0);
+      return;
     }
-  }, [isConnected, startTime]);
 
-  // Update duration every second
-  useEffect(() => {
-    if (!startTime) return;
-    
+    // Calculate initial duration
+    setDuration(Math.floor((Date.now() - callStartTime) / 1000));
+
     const interval = setInterval(() => {
-      setDuration(Math.floor((Date.now() - startTime) / 1000));
+      setDuration(Math.floor((Date.now() - callStartTime) / 1000));
     }, 1000);
-    
-    return () => clearInterval(interval);
-  }, [startTime]);
 
-  const reset = useCallback(() => {
-    setStartTime(null);
-    setDuration(0);
-  }, []);
+    return () => clearInterval(interval);
+  }, [callStartTime]);
 
   return {
     duration,
     formatted: formatDuration(duration),
-    startTime,
-    reset,
+    startTime: callStartTime,
   };
 }
