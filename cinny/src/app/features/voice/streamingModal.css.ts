@@ -519,3 +519,82 @@ export const GoLiveBtn = style({
     cursor: "not-allowed",
   },
 });
+
+// Custom Settings Panel
+export const CustomSettings = style({
+  display: "flex",
+  flexDirection: "column",
+  gap: "10px",
+  padding: "12px",
+  backgroundColor: butter.background,
+  borderRadius: "8px",
+  border: `1px solid ${butter.border}`,
+});
+
+export const SettingsRow = style({
+  display: "flex",
+  gap: "8px",
+  alignItems: "center",
+});
+
+export const BitrateRow = style({
+  display: "flex",
+  alignItems: "center",
+  gap: "10px",
+  fontSize: "12px",
+  color: butter.textMuted,
+  fontWeight: 500,
+});
+
+export const AdvancedBtn = style({
+  padding: "6px 12px",
+  backgroundColor: "transparent",
+  border: `1px solid ${butter.border}`,
+  borderRadius: "6px",
+  color: butter.textMuted,
+  fontSize: "12px",
+  cursor: "pointer",
+  transition: "all 0.15s",
+  ":hover": {
+    backgroundColor: butter.surfaceHover,
+    color: butter.text,
+  },
+});
+
+export const AdvancedSettings = style({
+  paddingTop: "8px",
+  borderTop: `1px solid ${butter.border}`,
+});
+
+export const SettingItem = style({
+  display: "flex",
+  flexDirection: "column",
+  gap: "6px",
+  fontSize: "12px",
+  color: butter.textMuted,
+});
+
+export const SettingSelect = style({
+  padding: "8px 10px",
+  backgroundColor: butter.surface,
+  border: `1px solid ${butter.border}`,
+  borderRadius: "6px",
+  color: butter.text,
+  fontSize: "13px",
+  cursor: "pointer",
+  minWidth: "80px",
+  ":focus": {
+    outline: "none",
+    borderColor: butter.accent,
+  },
+});
+
+export const SettingSlider = style({
+  flex: 1,
+  height: "6px",
+  borderRadius: "3px",
+  background: butter.surface,
+  outline: "none",
+  accentColor: butter.accent,
+  cursor: "pointer",
+});

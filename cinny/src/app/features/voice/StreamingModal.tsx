@@ -133,7 +133,7 @@ const AudioIcon = () => (
 );
 
 // Quality presets - with quality mode support
-type QualityPreset = "720p" | "1080p" | "1080p+" | "lossless";
+type QualityPreset = "720p" | "1080p" | "1440p" | "4k" | "custom";
 
 interface PresetConfig {
   label: string;
@@ -147,12 +147,12 @@ interface PresetConfig {
 
 const QUALITY_PRESETS: Record<QualityPreset, PresetConfig> = {
   "720p": {
-    label: "720p 30fps",
+    label: "720p 60fps",
     short: "720p",
     width: 1280,
     height: 720,
-    fps: 30,
-    bitrate: 3000,
+    fps: 60,
+    bitrate: 4000,
     quality_mode: 'performance',
   },
   "1080p": {
@@ -161,26 +161,35 @@ const QUALITY_PRESETS: Record<QualityPreset, PresetConfig> = {
     width: 1920,
     height: 1080,
     fps: 60,
-    bitrate: 6000,
+    bitrate: 8000,
     quality_mode: 'balanced',
   },
-  "1080p+": {
-    label: "1080p 60fps HQ",
-    short: "HQ",
-    width: 1920,
-    height: 1080,
+  "1440p": {
+    label: "1440p 60fps",
+    short: "1440p",
+    width: 2560,
+    height: 1440,
     fps: 60,
-    bitrate: 15000,
+    bitrate: 16000,
     quality_mode: 'quality',
   },
-  "lossless": {
-    label: "1080p 60fps Lossless",
-    short: "Lossless",
+  "4k": {
+    label: "4K 60fps",
+    short: "4K",
+    width: 3840,
+    height: 2160,
+    fps: 60,
+    bitrate: 35000,
+    quality_mode: 'lossless',
+  },
+  "custom": {
+    label: "Custom",
+    short: "Custom",
     width: 1920,
     height: 1080,
     fps: 60,
-    bitrate: 30000, // High bitrate for CQP fallback scenarios
-    quality_mode: 'lossless',
+    bitrate: 10000,
+    quality_mode: 'quality',
   },
 };
 
@@ -215,10 +224,28 @@ export function StreamingModal({ onClose }: StreamingModalProps) {
   const [showSettings, setShowSettings] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(false);
 
+  // Custom settings (used when preset === "custom")
+  const [customWidth, setCustomWidth] = useState(1920);
+  const [customHeight, setCustomHeight] = useState(1080);
+  const [customFps, setCustomFps] = useState(60);
+  const [customBitrate, setCustomBitrate] = useState(10000);
+  const [customQualityMode, setCustomQualityMode] = useState<'performance' | 'balanced' | 'quality' | 'lossless'>('quality');
+
   // Get effective settings
-  const getEffectiveSettings = useCallback(() => {
+  const getEffectiveSettings = useCallback((): PresetConfig => {
+    if (preset === "custom") {
+      return {
+        label: "Custom",
+        short: "Custom",
+        width: customWidth,
+        height: customHeight,
+        fps: customFps,
+        bitrate: customBitrate,
+        quality_mode: customQualityMode,
+      };
+    }
     return QUALITY_PRESETS[preset];
-  }, [preset]);
+  }, [preset, customWidth, customHeight, customFps, customBitrate, customQualityMode]);
 
   // Initialize - also check if already streaming
   useEffect(() => {
@@ -575,6 +602,72 @@ export function StreamingModal({ onClose }: StreamingModalProps) {
                     ))}
                   </div>
                 </div>
+
+                {/* Custom Settings Panel */}
+                {preset === "custom" && (
+                  <div className={css.CustomSettings}>
+                    <div className={css.SettingsRow}>
+                      <select
+                        value={`${customWidth}x${customHeight}`}
+                        onChange={(e) => {
+                          const [w, h] = e.target.value.split('x').map(Number);
+                          setCustomWidth(w);
+                          setCustomHeight(h);
+                        }}
+                        className={css.SettingSelect}
+                      >
+                        <option value="1280x720">720p</option>
+                        <option value="1920x1080">1080p</option>
+                        <option value="2560x1440">1440p</option>
+                        <option value="3840x2160">4K</option>
+                      </select>
+                      <select
+                        value={customFps}
+                        onChange={(e) => setCustomFps(Number(e.target.value))}
+                        className={css.SettingSelect}
+                      >
+                        <option value={30}>30fps</option>
+                        <option value={60}>60fps</option>
+                        <option value={120}>120fps</option>
+                      </select>
+                      <button
+                        className={css.AdvancedBtn}
+                        onClick={() => setShowSettings(!showSettings)}
+                      >
+                        {showSettings ? "Hide" : "Advanced"}
+                      </button>
+                    </div>
+                    <label className={css.BitrateRow}>
+                      <span>{customBitrate / 1000} Mbps</span>
+                      <input
+                        type="range"
+                        min={1000}
+                        max={50000}
+                        step={1000}
+                        value={customBitrate}
+                        onChange={(e) => setCustomBitrate(Number(e.target.value))}
+                        className={css.SettingSlider}
+                      />
+                    </label>
+                    {showSettings && (
+                      <div className={css.AdvancedSettings}>
+                        <label className={css.SettingItem}>
+                          <span>Encoder Mode</span>
+                          <select
+                            value={customQualityMode}
+                            onChange={(e) => setCustomQualityMode(e.target.value as any)}
+                            className={css.SettingSelect}
+                          >
+                            <option value="performance">Performance</option>
+                            <option value="balanced">Balanced</option>
+                            <option value="quality">Quality</option>
+                            <option value="lossless">Lossless (CQP)</option>
+                          </select>
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Audio Capture Checkbox */}
                 <label className={css.AudioCheckbox}>
