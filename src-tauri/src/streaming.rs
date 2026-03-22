@@ -758,8 +758,9 @@ fn build_video_capture(config: &StreamConfig) -> String {
                 QualityMode::Lossless => {
                     // Visually lossless: CQP with low QP value
                     // QP 18-20 is considered visually lossless
+                    // NVIDIA uses rc-mode=constqp and qp-const-i/qp-const-p properties
                     video.push_str(
-                        " ! nvh264enc preset=hq rc-mode=cqp qp-const=18 qp-min=15 qp-max=23"
+                        " ! nvh264enc preset=hq rc-mode=constqp qp-const-i=18 qp-const-p=20"
                     );
                 }
                 _ => unreachable!()
@@ -883,7 +884,7 @@ fn build_video_capture(config: &StreamConfig) -> String {
     video
 }
 
-/// Build audio capture pipeline segment (system audio loopback)
+/// Build audio capture pipeline segment (system audio loopback) with Opus encoding
 fn build_audio_capture() -> String {
     let mut audio = String::new();
 
@@ -893,16 +894,22 @@ fn build_audio_capture() -> String {
         audio.push_str("wasapisrc loopback=true low-latency=true");
         audio.push_str(" ! audioconvert ! audioresample");
         audio.push_str(" ! audio/x-raw,rate=48000,channels=2");
-        audio.push_str(" ! queue max-size-buffers=10 max-size-time=0 max-size-bytes=0");
+        audio.push_str(" ! queue max-size-buffers=10 max-size-time=0 max-size-bytes=0 leaky=downstream");
+        // Opus encoding for WebRTC - 128kbps stereo, low latency
+        audio.push_str(" ! opusenc bitrate=128000 audio-type=generic frame-size=20");
+        audio.push_str(" ! audio/x-opus,rate=48000,channels=2");
     }
 
     #[cfg(target_os = "linux")]
     {
         // PulseAudio monitor source for system audio
-        audio.push_str("pulsesrc device=\"$(pactl get-default-sink).monitor\"");
+        audio.push_str("pulsesrc");
         audio.push_str(" ! audioconvert ! audioresample");
         audio.push_str(" ! audio/x-raw,rate=48000,channels=2");
-        audio.push_str(" ! queue max-size-buffers=10 max-size-time=0 max-size-bytes=0");
+        audio.push_str(" ! queue max-size-buffers=10 max-size-time=0 max-size-bytes=0 leaky=downstream");
+        // Opus encoding for WebRTC
+        audio.push_str(" ! opusenc bitrate=128000 audio-type=generic frame-size=20");
+        audio.push_str(" ! audio/x-opus,rate=48000,channels=2");
     }
 
     #[cfg(target_os = "macos")]
@@ -911,7 +918,10 @@ fn build_audio_capture() -> String {
         audio.push_str("osxaudiosrc");
         audio.push_str(" ! audioconvert ! audioresample");
         audio.push_str(" ! audio/x-raw,rate=48000,channels=2");
-        audio.push_str(" ! queue max-size-buffers=10 max-size-time=0 max-size-bytes=0");
+        audio.push_str(" ! queue max-size-buffers=10 max-size-time=0 max-size-bytes=0 leaky=downstream");
+        // Opus encoding for WebRTC
+        audio.push_str(" ! opusenc bitrate=128000 audio-type=generic frame-size=20");
+        audio.push_str(" ! audio/x-opus,rate=48000,channels=2");
     }
 
     audio

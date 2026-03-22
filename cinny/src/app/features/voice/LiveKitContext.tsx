@@ -259,14 +259,34 @@ export function LiveKitProvider({ children }: { children: ReactNode }) {
         audioElement.id = "audio-" + participant.identity;
         audioContainerRef.current?.appendChild(audioElement);
         // Setup Web Audio gain node for volume boost beyond 100%
-        // Must be done after element is in DOM
-        setTimeout(() => {
-          if (!audioContextRef.current) audioContextRef.current = new AudioContext();
+        // Must be done after element is in DOM and audio is playing
+        // Small delay to ensure stereo audio routing is properly initialized
+        setTimeout(async () => {
+          if (!audioContextRef.current) {
+            audioContextRef.current = new AudioContext({ sampleRate: 48000 });
+          }
           const ctx = audioContextRef.current;
+          // Resume AudioContext if suspended (required after user interaction)
+          if (ctx.state === 'suspended') {
+            try { await ctx.resume(); } catch (e) { console.warn("[LiveKit] AudioContext resume failed:", e); }
+          }
           if (!sourceNodesRef.current.has(participant.identity)) {
             try {
+              // Wait for audio element to have data before creating source
+              if (audioElement.readyState < 2) {
+                await new Promise<void>(resolve => {
+                  const onCanPlay = () => { audioElement.removeEventListener('canplay', onCanPlay); resolve(); };
+                  audioElement.addEventListener('canplay', onCanPlay);
+                  // Timeout fallback
+                  setTimeout(resolve, 500);
+                });
+              }
               const source = ctx.createMediaElementSource(audioElement);
               const gainNode = ctx.createGain();
+              // Ensure stereo routing
+              gainNode.channelCount = 2;
+              gainNode.channelCountMode = 'explicit';
+              gainNode.channelInterpretation = 'speakers';
               source.connect(gainNode);
               gainNode.connect(ctx.destination);
               sourceNodesRef.current.set(participant.identity, source);
@@ -279,7 +299,7 @@ export function LiveKitProvider({ children }: { children: ReactNode }) {
               if (savedVolume !== undefined) audioElement.volume = Math.min(1, savedVolume);
             }
           }
-        }, 0);
+        }, 50);
       }
     } else if (track.kind === Track.Kind.Video) {
       // Detect screen share either by track source OR by participant being a WHIP ingress (-stream suffix)
@@ -417,23 +437,23 @@ export function LiveKitProvider({ children }: { children: ReactNode }) {
           autoGainControl: true, // Enable AGC for better voice pickup
         },
         publishDefaults: {
-          dtx: true,
-          red: true,
-          audioBitrate: 32000,
-          // Video quality settings for camera - high bitrate for good quality
-          videoCodec: 'vp8',
+          dtx: true,  // Discontinuous transmission - saves bandwidth when silent
+          red: true,  // Redundant encoding for packet loss resilience
+          audioBitrate: 96_000,  // 96 kbps Opus - high quality voice
+          // Video quality settings for camera - high quality 1080p
+          videoCodec: 'vp9',  // VP9 is more efficient than VP8
           videoEncoding: {
-            maxBitrate: 2_500_000, // 2.5 Mbps for 720p webcam
-            maxFramerate: 30,
+            maxBitrate: 4_000_000, // 4 Mbps for 1080p webcam
+            maxFramerate: 60,
           },
           videoSimulcastLayers: [
-            VideoPresets.h180,
             VideoPresets.h360,
             VideoPresets.h720,
+            VideoPresets.h1080,
           ],
         },
         videoCaptureDefaults: {
-          resolution: VideoPresets.h720, // 720p is good balance for webcam
+          resolution: VideoPresets.h1080, // 1080p for high quality
           facingMode: 'user',
         },
       };
