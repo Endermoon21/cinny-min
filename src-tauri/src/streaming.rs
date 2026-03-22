@@ -726,8 +726,8 @@ fn build_video_capture(config: &StreamConfig) -> String {
             config.width, config.height
         ));
 
-        // Queue for stability - larger buffer, no frame dropping
-        video.push_str(" ! queue max-size-buffers=10 max-size-time=200000000 max-size-bytes=0");
+        // Queue for stability - use leaky=upstream to drop old frames, not new ones
+        video.push_str(" ! queue max-size-buffers=3 max-size-time=50000000 max-size-bytes=0 leaky=upstream");
 
         // Download from GPU memory to system memory
         video.push_str(" ! d3d11download");
@@ -764,8 +764,8 @@ fn build_video_capture(config: &StreamConfig) -> String {
                 }
                 _ => unreachable!()
             }
-            // Buffer after encoder to smooth out timing variations
-            video.push_str(" ! queue max-size-buffers=3 max-size-time=50000000 max-size-bytes=0");
+            // Buffer after encoder - leaky=upstream drops old frames
+            video.push_str(" ! queue max-size-buffers=2 max-size-time=33000000 max-size-bytes=0 leaky=upstream");
             video.push_str(" ! h264parse config-interval=-1");
         } else if gst::ElementFactory::find("amfh264enc").is_some() {
             // AMD AMF encoder with quality-based settings
@@ -798,8 +798,8 @@ fn build_video_capture(config: &StreamConfig) -> String {
                     );
                 }
             }
-            // Buffer after encoder to smooth out timing variations
-            video.push_str(" ! queue max-size-buffers=3 max-size-time=50000000 max-size-bytes=0");
+            // Buffer after encoder - leaky=upstream drops old frames
+            video.push_str(" ! queue max-size-buffers=2 max-size-time=33000000 max-size-bytes=0 leaky=upstream");
             video.push_str(" ! h264parse config-interval=-1");
         } else if gst::ElementFactory::find("qsvh264enc").is_some() {
             // Intel QuickSync encoder
@@ -827,8 +827,8 @@ fn build_video_capture(config: &StreamConfig) -> String {
                     ));
                 }
             }
-            // Buffer after encoder to smooth out timing variations
-            video.push_str(" ! queue max-size-buffers=3 max-size-time=50000000 max-size-bytes=0");
+            // Buffer after encoder - leaky=upstream drops old frames
+            video.push_str(" ! queue max-size-buffers=2 max-size-time=33000000 max-size-bytes=0 leaky=upstream");
             video.push_str(" ! h264parse config-interval=-1");
         } else if gst::ElementFactory::find("x264enc").is_some() {
             // Software fallback with quality options
@@ -859,8 +859,8 @@ fn build_video_capture(config: &StreamConfig) -> String {
                     );
                 }
             }
-            // Buffer after encoder to smooth out timing variations
-            video.push_str(" ! queue max-size-buffers=3 max-size-time=50000000 max-size-bytes=0");
+            // Buffer after encoder - leaky=upstream drops old frames
+            video.push_str(" ! queue max-size-buffers=2 max-size-time=33000000 max-size-bytes=0 leaky=upstream");
             video.push_str(" ! h264parse config-interval=-1");
         } else {
             log_to_file("WARNING: No H.264 encoder found! Stream may fail.");
