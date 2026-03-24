@@ -95,7 +95,11 @@ export function UpdateBanner() {
 
     } catch (e: any) {
       console.error('[Update] Install failed:', e);
-      setState({ status: 'error', error: e.message || 'Update failed' });
+      // Try to get more detailed error info
+      const errorMsg = e?.message || e?.toString() || 'Unknown error';
+      const errorDetails = typeof e === 'object' ? JSON.stringify(e) : String(e);
+      console.error('[Update] Error details:', errorDetails);
+      setState({ status: 'error', error: errorMsg });
     }
   }, []);
 
