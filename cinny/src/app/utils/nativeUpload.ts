@@ -20,6 +20,10 @@ const listen = isTauri
   ? (window as any).__TAURI__.event.listen
   : async () => { throw new Error('Not running in Tauri'); };
 
+const openFileDialog = isTauri
+  ? (window as any).__TAURI__.dialog?.open
+  : async () => { throw new Error('Not running in Tauri'); };
+
 type UnlistenFn = () => void;
 
 // MIME type lookup for common formats (fallback when browser doesn't detect)
@@ -86,6 +90,13 @@ export interface NativeUploadProgress {
 
 export interface NativeUploadResult {
   content_uri: string;
+}
+
+export interface LargeFileUploadResult {
+  content_uri: string;
+  file_name: string;
+  file_size: number;
+  content_type: string;
 }
 
 export interface UploadOptions {
@@ -273,6 +284,83 @@ export function hasActiveUploads(): boolean {
  */
 export function getActiveUploadCount(): number {
   return activeUploads.size;
+}
+
+/**
+ * Upload a large file using Tauri's file dialog
+ * This bypasses the base64 encoding by reading the file directly from disk in Rust
+ *
+ * @param homeserver - Matrix homeserver URL
+ * @param accessToken - User's Matrix access token
+ * @param options - Upload options (progress, status callbacks)
+ * @returns Promise resolving to upload result with mxc URI and file metadata, or null if cancelled
+ */
+export async function uploadLargeFile(
+  homeserver: string,
+  accessToken: string,
+  options: UploadOptions = {}
+): Promise<LargeFileUploadResult | null> {
+  if (!isTauri) {
+    throw new Error('Large file upload is only available in Tauri');
+  }
+
+  if (!openFileDialog) {
+    throw new Error('File dialog not available');
+  }
+
+  const { onProgress, onStatusChange } = options;
+
+  // Open file picker
+  const filePath = await openFileDialog({
+    multiple: false,
+    title: 'Select file to upload (any size)',
+  });
+
+  if (!filePath || (Array.isArray(filePath) && filePath.length === 0)) {
+    return null; // User cancelled
+  }
+
+  const path = Array.isArray(filePath) ? filePath[0] : filePath;
+
+  // Generate unique upload ID
+  const uploadId = generateUploadId();
+
+  // Get content type from extension
+  const ext = path.toLowerCase().match(/\.[^.]+$/)?.[0] || '';
+  const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+
+  // Set up progress listener
+  let unlisten: UnlistenFn | undefined;
+
+  if (onProgress || onStatusChange) {
+    unlisten = await listen<NativeUploadProgress>('native-upload-progress', (event) => {
+      if (event.payload.id === uploadId) {
+        const progress = event.payload;
+        if (onProgress) {
+          onProgress(progress);
+        }
+        if (onStatusChange && progress.status) {
+          onStatusChange(progress.status);
+        }
+      }
+    });
+  }
+
+  try {
+    const result = await invoke<LargeFileUploadResult>('native_upload_file_path', {
+      uploadId,
+      homeserver,
+      accessToken,
+      filePath: path,
+      contentType,
+    });
+
+    return result;
+  } finally {
+    if (unlisten) {
+      unlisten();
+    }
+  }
 }
 
 // Legacy export for backwards compatibility

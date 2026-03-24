@@ -8,13 +8,16 @@
 //! - Configurable timeouts
 
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
+use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::{State, Window};
+use tokio::fs::File;
+use tokio::io::AsyncReadExt;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
 
@@ -41,6 +44,15 @@ pub enum UploadStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UploadResult {
     pub content_uri: String,
+}
+
+/// Upload result with mxc URI and file metadata (for large file uploads)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UploadResultWithMetadata {
+    pub content_uri: String,
+    pub file_name: String,
+    pub file_size: u64,
+    pub content_type: String,
 }
 
 /// Error response from Matrix server
@@ -294,6 +306,199 @@ pub async fn native_upload_file(
     cleanup_upload(&state, &upload_id).await;
     emit_progress(&window, &upload_id, 0, total_size, UploadStatus::Error);
     Err(last_error)
+}
+
+/// Upload a file from disk path (supports large files, reads directly from disk)
+#[tauri::command]
+pub async fn native_upload_file_path(
+    window: Window,
+    state: State<'_, UploadState>,
+    upload_id: String,
+    homeserver: String,
+    access_token: String,
+    file_path: String,
+    content_type: String,
+) -> Result<UploadResultWithMetadata, String> {
+    let path = PathBuf::from(&file_path);
+
+    // Get file metadata
+    let metadata = tokio::fs::metadata(&path)
+        .await
+        .map_err(|e| format!("Failed to read file metadata: {}", e))?;
+
+    let total_size = metadata.len();
+    let file_name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("file")
+        .to_string();
+
+    log::info!(
+        "Native file path upload starting: {} ({} bytes, {})",
+        file_name,
+        total_size,
+        content_type
+    );
+
+    // Create cancellation flag and register upload
+    let cancelled = Arc::new(AtomicBool::new(false));
+    {
+        let mut uploads = state.active_uploads.write().await;
+        uploads.insert(
+            upload_id.clone(),
+            ActiveUpload {
+                cancelled: cancelled.clone(),
+                file_name: file_name.clone(),
+            },
+        );
+    }
+
+    // Build the upload URL
+    let base_url = homeserver
+        .trim_end_matches('/')
+        .split("/_matrix")
+        .next()
+        .unwrap_or(&homeserver);
+
+    let upload_url = format!(
+        "{}/_matrix/media/v3/upload?filename={}",
+        base_url,
+        urlencoding::encode(&file_name)
+    );
+
+    // Emit initial progress (reading phase)
+    emit_progress(&window, &upload_id, 0, total_size, UploadStatus::Uploading);
+
+    // Read file in chunks with progress reporting
+    let mut file = File::open(&path)
+        .await
+        .map_err(|e| format!("Failed to open file: {}", e))?;
+
+    let chunk_size = 256 * 1024; // 256KB chunks for reading
+    let mut file_data = Vec::with_capacity(total_size as usize);
+    let mut buffer = vec![0u8; chunk_size];
+    let mut bytes_read: u64 = 0;
+
+    loop {
+        // Check for cancellation
+        if cancelled.load(Ordering::SeqCst) {
+            cleanup_upload(&state, &upload_id).await;
+            emit_progress(&window, &upload_id, 0, total_size, UploadStatus::Cancelled);
+            return Err("Upload cancelled".to_string());
+        }
+
+        let n = file
+            .read(&mut buffer)
+            .await
+            .map_err(|e| format!("Failed to read file: {}", e))?;
+
+        if n == 0 {
+            break;
+        }
+
+        file_data.extend_from_slice(&buffer[..n]);
+        bytes_read += n as u64;
+
+        // Report reading progress (0-50% of total progress)
+        let read_progress = (bytes_read as f64 / total_size as f64 * 50.0) as u64;
+        emit_progress(&window, &upload_id, read_progress, 100, UploadStatus::Uploading);
+    }
+
+    log::info!("File read complete: {} bytes", file_data.len());
+
+    // Create HTTP client with longer timeout for large files
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(3600)) // 1 hour for very large files
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+    // Set up headers
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        AUTHORIZATION,
+        HeaderValue::from_str(&format!("Bearer {}", access_token))
+            .map_err(|e| format!("Invalid access token: {}", e))?,
+    );
+    headers.insert(
+        CONTENT_TYPE,
+        HeaderValue::from_str(&content_type)
+            .map_err(|e| format!("Invalid content type: {}", e))?,
+    );
+    headers.insert(
+        CONTENT_LENGTH,
+        HeaderValue::from_str(&total_size.to_string())
+            .map_err(|e| format!("Invalid content length: {}", e))?,
+    );
+
+    // Report upload starting (50% mark)
+    emit_progress(&window, &upload_id, 50, 100, UploadStatus::Uploading);
+
+    // Perform the upload
+    let result = client
+        .post(&upload_url)
+        .headers(headers)
+        .body(file_data)
+        .send()
+        .await;
+
+    match result {
+        Ok(response) => {
+            let status = response.status();
+            let response_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Failed to read response".to_string());
+
+            log::info!("Upload response status: {}", status);
+
+            if status.is_success() {
+                match serde_json::from_str::<UploadResult>(&response_text) {
+                    Ok(result) => {
+                        log::info!("File path upload successful: {}", result.content_uri);
+                        cleanup_upload(&state, &upload_id).await;
+                        emit_progress(&window, &upload_id, 100, 100, UploadStatus::Complete);
+                        return Ok(UploadResultWithMetadata {
+                            content_uri: result.content_uri,
+                            file_name: file_name.clone(),
+                            file_size: total_size,
+                            content_type: content_type.clone(),
+                        });
+                    }
+                    Err(e) => {
+                        cleanup_upload(&state, &upload_id).await;
+                        emit_progress(&window, &upload_id, 0, 100, UploadStatus::Error);
+                        return Err(format!("Failed to parse response: {} (body: {})", e, response_text));
+                    }
+                }
+            } else {
+                let error = if let Ok(error) = serde_json::from_str::<MatrixError>(&response_text) {
+                    format!(
+                        "Matrix error {}: {} - {}",
+                        status,
+                        error.errcode.unwrap_or_default(),
+                        error.error.unwrap_or_default()
+                    )
+                } else {
+                    format!("Upload failed with status {}: {}", status, response_text)
+                };
+                cleanup_upload(&state, &upload_id).await;
+                emit_progress(&window, &upload_id, 0, 100, UploadStatus::Error);
+                return Err(error);
+            }
+        }
+        Err(e) => {
+            let error = if e.is_timeout() {
+                "Upload timed out".to_string()
+            } else if e.is_connect() {
+                format!("Connection failed: {}", e)
+            } else {
+                format!("Upload request failed: {}", e)
+            };
+            cleanup_upload(&state, &upload_id).await;
+            emit_progress(&window, &upload_id, 0, 100, UploadStatus::Error);
+            return Err(error);
+        }
+    }
 }
 
 /// Cancel an active upload

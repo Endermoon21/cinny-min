@@ -150,6 +150,7 @@ fn main() {
             streaming::clear_streaming_log,
             streaming::check_gstreamer,
             upload::native_upload_file,
+            upload::native_upload_file_path,
             upload::cancel_native_upload,
             upload::get_active_uploads,
         ])

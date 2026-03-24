@@ -19,10 +19,13 @@ import {
   IconButton,
   Icons,
   Line,
+  Menu,
+  MenuItem,
   Overlay,
   OverlayBackdrop,
   OverlayCenter,
   PopOut,
+  RectCords,
   Scroll,
   Text,
   config,
@@ -89,6 +92,8 @@ import {
   createUploadFamilyObserverAtom,
 } from '../../state/upload';
 import { getImageUrlBlob, loadImageElement } from '../../utils/dom';
+import { isTauri, uploadLargeFile, LargeFileUploadResult } from '../../utils/nativeUpload';
+import FocusTrap from 'focus-trap-react';
 import { safeFile } from '../../utils/mimeTypes';
 import { fulfilledPromiseSettledResult } from '../../utils/common';
 import { useSetting } from '../../state/hooks/settings';
@@ -217,6 +222,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const handlePaste = useFilePasteHandler(handleFiles);
     const dropZoneVisible = useFileDropZone(fileDropContainerRef, handleFiles);
     const [hideStickerBtn, setHideStickerBtn] = useState(document.body.clientWidth < 500);
+    const [attachMenuAnchor, setAttachMenuAnchor] = useState<RectCords>();
+    const attachBtnRef = useRef<HTMLButtonElement>(null);
 
     const isComposing = useComposingCheck();
 
@@ -295,6 +302,45 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       const contents = fulfilledPromiseSettledResult(await Promise.allSettled(contentsPromises));
       contents.forEach((content) => mx.sendMessage(roomId, content as any));
     };
+
+    const handleLargeFileUpload = useCallback(async () => {
+      setAttachMenuAnchor(undefined);
+
+      const homeserver = mx.getHomeserverUrl();
+      const accessToken = mx.getAccessToken();
+
+      if (!accessToken) {
+        console.error('No access token for large file upload');
+        return;
+      }
+
+      try {
+        const result = await uploadLargeFile(homeserver, accessToken, {
+          onProgress: (progress) => {
+            console.log(`Large file upload: ${progress.loaded}/${progress.total}`);
+          },
+        });
+
+        if (!result) {
+          return; // User cancelled
+        }
+
+        // Create and send file message
+        const content: IContent = {
+          msgtype: MsgType.File,
+          body: result.file_name,
+          url: result.content_uri,
+          info: {
+            mimetype: result.content_type,
+            size: result.file_size,
+          },
+        };
+
+        mx.sendMessage(roomId, content as any);
+      } catch (error) {
+        console.error('Large file upload failed:', error);
+      }
+    }, [mx, roomId]);
 
     const submit = useCallback(() => {
       uploadBoardHandlers.current?.handleSend();
@@ -583,14 +629,61 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             )
           }
           before={
-            <IconButton
-              onClick={() => pickFile('*')}
-              variant="SurfaceVariant"
-              size="300"
-              radii="300"
+            <PopOut
+              offset={8}
+              position="Top"
+              align="Start"
+              anchor={attachMenuAnchor}
+              content={
+                <FocusTrap
+                  focusTrapOptions={{
+                    initialFocus: false,
+                    onDeactivate: () => setAttachMenuAnchor(undefined),
+                    clickOutsideDeactivates: true,
+                    returnFocusOnDeactivate: false,
+                  }}
+                >
+                  <Menu style={{ maxWidth: toRem(200) }}>
+                    <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+                      <MenuItem
+                        onClick={() => {
+                          setAttachMenuAnchor(undefined);
+                          pickFile('*');
+                        }}
+                        size="300"
+                        radii="300"
+                        before={<Icon src={Icons.File} size="100" />}
+                      >
+                        <Text size="T300">Attach Files</Text>
+                      </MenuItem>
+                      {isTauri && (
+                        <MenuItem
+                          onClick={handleLargeFileUpload}
+                          size="300"
+                          radii="300"
+                          before={<Icon src={Icons.Upload} size="100" />}
+                        >
+                          <Text size="T300">Large File (100MB+)</Text>
+                        </MenuItem>
+                      )}
+                    </Box>
+                  </Menu>
+                </FocusTrap>
+              }
             >
-              <Icon src={Icons.PlusCircle} />
-            </IconButton>
+              <IconButton
+                ref={attachBtnRef}
+                onClick={(evt) => {
+                  const target = evt.currentTarget as HTMLButtonElement;
+                  setAttachMenuAnchor(target.getBoundingClientRect());
+                }}
+                variant="SurfaceVariant"
+                size="300"
+                radii="300"
+              >
+                <Icon src={Icons.PlusCircle} />
+              </IconButton>
+            </PopOut>
           }
           after={
             <>
