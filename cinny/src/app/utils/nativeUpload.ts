@@ -136,6 +136,10 @@ async function fileToBase64(file: File | Blob): Promise<string> {
  * @param options - Upload options (progress, retry, status callbacks)
  * @returns Promise resolving to the mxc:// content URI
  */
+// Maximum file size for native upload (100MB)
+// Larger files would cause memory issues with base64 encoding
+const MAX_NATIVE_UPLOAD_SIZE = 100 * 1024 * 1024;
+
 export async function nativeUploadFile(
   file: File | Blob,
   homeserver: string,
@@ -144,6 +148,15 @@ export async function nativeUploadFile(
 ): Promise<string> {
   if (!isTauri) {
     throw new Error('Native upload is only available in Tauri');
+  }
+
+  // Check file size - native upload loads entire file into memory
+  if (file.size > MAX_NATIVE_UPLOAD_SIZE) {
+    const sizeMB = Math.round(file.size / (1024 * 1024));
+    throw new Error(
+      `File too large for native upload (${sizeMB}MB). Maximum is 100MB. ` +
+      `Large files should use standard upload method.`
+    );
   }
 
   const { onProgress, onRetry, onStatusChange } = options;
