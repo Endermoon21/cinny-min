@@ -11,7 +11,7 @@ DOCKER_HOST="root@100.89.14.34"
 DOCKER_PASS="lancache123"
 VOLTA_BUILD_PATH="C:/Users/VOLTA/cinny-desktop/src-tauri/target/release/bundle/msi"
 UPDATE_SERVER_PATH="/opt/cinny-downloads"
-TAURI_KEY_PATH="/opt/cinny-keys/tauri-new.key"
+TAURI_KEY_PATH="/opt/cinny-keys/test-tauri.key"
 GITHUB_REPO="Endermoon21/cinny-min"
 
 # Colors
@@ -65,12 +65,12 @@ sshpass -p "$DOCKER_PASS" scp -o StrictHostKeyChecking=no \
 
 # Step 3: Sign the bundle
 echo -e "\n${GREEN}[3/5] Signing bundle...${NC}"
-# Sign using cargo-tauri signer (produces Tauri-compatible signatures)
+# Sign using cargo-tauri signer with -f for file path and -p '' for empty password
 SIGN_OUTPUT=$(sshpass -p "$DOCKER_PASS" ssh -o StrictHostKeyChecking=no "$DOCKER_HOST" \
-    "cd ${UPDATE_SERVER_PATH} && ~/.cargo/bin/cargo-tauri signer sign -k ${TAURI_KEY_PATH} ${BUNDLE_NAME} 2>&1")
+    "cd ${UPDATE_SERVER_PATH} && ~/.cargo/bin/cargo-tauri signer sign -f ${TAURI_KEY_PATH} -p '' ${BUNDLE_NAME} 2>&1")
 
-# Extract signature from output (it's the base64 string after "Signature:")
-SIGNATURE=$(echo "$SIGN_OUTPUT" | grep -A1 "Signature:" | tail -1 | tr -d '[:space:]')
+# Extract signature from output (it's the base64 string after "Public signature:")
+SIGNATURE=$(echo "$SIGN_OUTPUT" | grep -A1 "Public signature:" | tail -1 | tr -d '[:space:]')
 
 if [ -z "$SIGNATURE" ]; then
     echo -e "${RED}Error: Failed to extract signature${NC}"
