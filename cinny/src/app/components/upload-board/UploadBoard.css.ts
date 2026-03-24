@@ -68,6 +68,21 @@ export const UploadBoardContent = style({
 // OVERALL PROGRESS INDICATOR
 // ============================================
 
+const shimmer = keyframes({
+  '0%': { transform: 'translateX(-100%)' },
+  '100%': { transform: 'translateX(100%)' },
+});
+
+const pulse = keyframes({
+  '0%, 100%': { opacity: 1 },
+  '50%': { opacity: 0.7 },
+});
+
+const stripes = keyframes({
+  '0%': { backgroundPosition: '0 0' },
+  '100%': { backgroundPosition: `${toRem(40)} 0` },
+});
+
 export const OverallProgressContainer = style({
   display: 'flex',
   alignItems: 'center',
@@ -79,23 +94,63 @@ export const OverallProgressContainer = style({
 
 export const OverallProgressBar = style({
   flex: 1,
-  height: toRem(4),
+  height: toRem(8),
   backgroundColor: color.SurfaceVariant.Container,
-  borderRadius: toRem(2),
+  borderRadius: toRem(4),
   overflow: 'hidden',
+  position: 'relative',
 });
 
 export const OverallProgressFill = style({
   height: '100%',
-  backgroundColor: color.Primary.Main,
-  borderRadius: toRem(2),
-  transition: 'width 0.2s ease-out',
+  background: `linear-gradient(
+    90deg,
+    ${color.Primary.Main} 0%,
+    color-mix(in srgb, ${color.Primary.Main} 80%, white) 50%,
+    ${color.Primary.Main} 100%
+  )`,
+  borderRadius: toRem(4),
+  transition: 'width 0.1s linear',
+  position: 'relative',
+  overflow: 'hidden',
+  // Animated stripes
+  backgroundImage: `linear-gradient(
+    45deg,
+    rgba(255,255,255,0.15) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255,255,255,0.15) 50%,
+    rgba(255,255,255,0.15) 75%,
+    transparent 75%,
+    transparent
+  )`,
+  backgroundSize: `${toRem(20)} ${toRem(20)}`,
+  animation: `${stripes} 0.5s linear infinite`,
+  '::after': {
+    content: '""',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+    animation: `${shimmer} 1s ease-in-out infinite`,
+  },
 });
 
 export const OverallProgressText = style({
   fontSize: toRem(12),
   fontWeight: 600,
   color: color.Primary.Main,
-  minWidth: toRem(36),
+  minWidth: toRem(48),
+  textAlign: 'right',
+  animation: `${pulse} 1s ease-in-out infinite`,
+});
+
+export const ProgressDetails = style({
+  fontSize: toRem(10),
+  color: color.Surface.OnContainer,
+  opacity: 0.7,
+  minWidth: toRem(80),
   textAlign: 'right',
 });

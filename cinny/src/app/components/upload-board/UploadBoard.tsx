@@ -109,12 +109,17 @@ export function UploadBoardHeader({
           </Badge>
         )}
         {!isSuccess && !isError && !open && (
-          <>
-            <Badge variant="Secondary" fill="Solid" radii="Pill">
-              <Text size="L400">{Math.round(percent(0, progress.total, progress.loaded))}%</Text>
-            </Badge>
-            <Spinner variant="Secondary" size="200" />
-          </>
+          <Box alignItems="Center" gap="200" style={{ minWidth: '180px' }}>
+            <div className={css.OverallProgressBar}>
+              <div
+                className={css.OverallProgressFill}
+                style={{ width: `${percent(0, progress.total, progress.loaded)}%` }}
+              />
+            </div>
+            <Text className={css.OverallProgressText} size="L400">
+              {Math.round(percent(0, progress.total, progress.loaded))}%
+            </Text>
+          </Box>
         )}
         {!isSuccess && open && (
           <Chip
