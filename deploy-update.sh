@@ -11,7 +11,7 @@ DOCKER_HOST="root@100.89.14.34"
 DOCKER_PASS="lancache123"
 VOLTA_BUILD_PATH="C:/Users/VOLTA/cinny-desktop/src-tauri/target/release/bundle/msi"
 UPDATE_SERVER_PATH="/opt/cinny-downloads"
-TAURI_KEY_PATH="/opt/cinny-keys/test-tauri.key"
+MINISIGN_KEY_PATH="/opt/cinny-keys/minisign.key"
 GITHUB_REPO="Endermoon21/cinny-min"
 
 # Colors
@@ -65,16 +65,16 @@ sshpass -p "$DOCKER_PASS" scp -o StrictHostKeyChecking=no \
 
 # Step 3: Sign the bundle
 echo -e "\n${GREEN}[3/5] Signing bundle...${NC}"
-# Sign using cargo-tauri signer with -f for file path and -p '' for empty password
-SIGN_OUTPUT=$(sshpass -p "$DOCKER_PASS" ssh -o StrictHostKeyChecking=no "$DOCKER_HOST" \
-    "cd ${UPDATE_SERVER_PATH} && ~/.cargo/bin/cargo-tauri signer sign -f ${TAURI_KEY_PATH} -p '' ${BUNDLE_NAME} 2>&1")
+# Sign using minisign with -l (legacy format) for Ed25519 compatibility
+sshpass -p "$DOCKER_PASS" ssh -o StrictHostKeyChecking=no "$DOCKER_HOST" \
+    "cd ${UPDATE_SERVER_PATH} && echo '' | minisign -Slm ${BUNDLE_NAME} -s ${MINISIGN_KEY_PATH} -t 'file:${BUNDLE_NAME}' 2>&1"
 
-# Extract signature from output (it's the base64 string after "Public signature:")
-SIGNATURE=$(echo "$SIGN_OUTPUT" | grep -A1 "Public signature:" | tail -1 | tr -d '[:space:]')
+# Read the .minisig file and base64 encode it
+SIGNATURE=$(sshpass -p "$DOCKER_PASS" ssh -o StrictHostKeyChecking=no "$DOCKER_HOST" \
+    "cat ${UPDATE_SERVER_PATH}/${BUNDLE_NAME}.minisig | base64 -w0")
 
 if [ -z "$SIGNATURE" ]; then
-    echo -e "${RED}Error: Failed to extract signature${NC}"
-    echo "$SIGN_OUTPUT"
+    echo -e "${RED}Error: Failed to read signature file${NC}"
     exit 1
 fi
 

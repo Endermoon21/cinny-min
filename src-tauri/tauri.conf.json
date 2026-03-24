@@ -1,7 +1,7 @@
 {
   "package": {
     "productName": "Cinny-Min",
-    "version": "4.12.125"
+    "version": "4.12.126"
   },
   "build": {
     "withGlobalTauri": true,
@@ -128,7 +128,7 @@
         "https://github.com/Endermoon21/cinny-min/releases/latest/download/latest.json"
       ],
       "dialog": false,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDlBQjZEQ0MxM0U4MDhDQkYKUldTL2pJQSt3ZHkybWhBb3NXYkdYVVFNeURpNDFLVmVyd2F0K21odWVKY1FSaEMzemxOcnZoK24K",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXkgODg3QzE1ODk2REJGOTUwMwpSV1FEbGI5dGlSVjhpSThrN1ZyMnFDWnhlR2x5OW85OVdZUW9VRzBqSHpPRU5kc2hCWENTMGc5dAo=",
       "windows": {
         "installMode": "passive"
       }
