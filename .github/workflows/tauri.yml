@@ -131,7 +131,7 @@ jobs:
           Write-Host "Version: $version"
 
       - name: Create/Update Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: Cinny-Min v${{ steps.version.outputs.version }}
