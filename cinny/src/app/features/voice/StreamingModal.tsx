@@ -57,7 +57,7 @@ async function isOnLocalNetwork(): Promise<boolean> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 1000);
 
-    const response = await fetch('http://10.0.0.100:8085/', {
+    const response = await fetch('http://10.0.0.100:8087/', {
       method: 'HEAD',
       mode: 'no-cors',
       signal: controller.signal,
